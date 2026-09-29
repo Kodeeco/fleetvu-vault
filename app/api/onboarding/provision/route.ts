@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await executeOnboardingTransaction(parsed.data, body.actor, {
-    sendWelcomeEmail: body.sendWelcomeEmail !== false,
+    // FleetVu customer deploy always sends the welcome / setup email.
+    sendWelcomeEmail: true,
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     logo: body.logo || null,
   });

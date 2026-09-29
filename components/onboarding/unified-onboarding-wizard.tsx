@@ -257,7 +257,14 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
       }
       onComplete?.({ ...result, data: payload });
       setData(DEFAULT_DATA);
+      setLogoFile(null);
+      setLogoPreview(null);
       setStep('company');
+      if (!result.emailDispatched) {
+        setSubmitError(
+          'Company deployed, but the welcome email did not confirm dispatch. Check SMTP / welcome@fleetvu.org and resend if needed.',
+        );
+      }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Network error during onboarding');
     } finally {
@@ -692,10 +699,25 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-orange-200">
-                  Deploy creates the company, fleet director, activation key, and setup token in an
-                  ACID compensating transaction. A welcome email is sent from{' '}
-                  <strong>welcome@fleetvu.org</strong>. On failure, all inserts are rolled back.
+                <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-orange-200 space-y-1.5">
+                  <p>
+                    Deploy creates the company, fleet director, activation key, and setup token.
+                    {logoPreview
+                      ? ' Customer logo brands the Vault lock screen and HUD header.'
+                      : ' Add a logo on the Company step to brand the Vault header (like SCFuels).'}
+                  </p>
+                  <p>
+                    <strong>Welcome email is always sent</strong> from{' '}
+                    <strong>welcome@fleetvu.org</strong>
+                    {data.contactEmail ? (
+                      <>
+                        {' '}
+                        to <strong>{data.contactEmail}</strong>
+                      </>
+                    ) : null}{' '}
+                    with the 72-hour setup link — that is the standard onboarding handoff.
+                  </p>
+                  <p className="text-orange-300/80">On failure, all inserts are rolled back.</p>
                 </div>
 
                 {submitError && (
@@ -800,9 +822,10 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
                 })}
             </div>
 
-            <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-orange-300">
-              Welcome email via welcome@fleetvu.org · 72-hour setup link
-              {data.contactEmail ? ` → ${data.contactEmail}` : ''}
+            <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+              <div className="font-semibold text-emerald-300 mb-0.5">Welcome email (always on)</div>
+              Sent via <strong>welcome@fleetvu.org</strong> · 72-hour setup link
+              {data.contactEmail ? ` → ${data.contactEmail}` : ' → primary contact'}
             </div>
           </CardContent>
         </Card>
