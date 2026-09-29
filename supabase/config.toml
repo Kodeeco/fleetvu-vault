@@ -1,0 +1,15 @@
+[functions.api-gateway]
+verify_jwt = false
+entrypoint = "./functions/api-gateway/index.ts"
+
+[functions.crypto-vault]
+verify_jwt = false
+entrypoint = "./functions/crypto-vault/index.ts"
+
+[functions.subscription-handler]
+verify_jwt = false
+entrypoint = "./functions/subscription-handler/index.ts"
+
+[functions.enterprise-webhook]
+verify_jwt = false
+entrypoint = "./functions/enterprise-webhook/index.ts"

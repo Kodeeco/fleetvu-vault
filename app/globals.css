@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme - Mobile HUD / high-glare daylight */
+    --background: 210 20% 98%;
+    --foreground: 215 28% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 210 20% 94%;
+    --muted-foreground: 215 14% 45%;
+    --accent: 24 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 16% 88%;
+    --input: 210 16% 88%;
+    --ring: 24 95% 53%;
+    --radius: 0.5rem;
+    --fleetvu-bg: 210 20% 98%;
+    --fleetvu-container: 0 0% 100%;
+    --fleetvu-orange: 24 95% 53%;
+    --fleetvu-text: 215 28% 17%;
+    --fleetvu-muted: 215 14% 45%;
+
+    --chart-1: 24 95% 53%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 0 72% 51%;
+  }
+
+  .dark {
+    /* Dark theme - Desktop industrial glassmorphism */
+    --background: 222 47% 11%;
+    --foreground: 213 27% 84%;
+    --card: 215 28% 17%;
+    --card-foreground: 213 27% 84%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 213 27% 84%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 28% 21%;
+    --secondary-foreground: 213 27% 84%;
+    --muted: 215 28% 21%;
+    --muted-foreground: 215 14% 55%;
+    --accent: 24 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 28% 24%;
+    --input: 215 28% 24%;
+    --ring: 24 95% 53%;
+    --fleetvu-bg: 222 47% 11%;
+    --fleetvu-container: 215 28% 17%;
+    --fleetvu-orange: 24 95% 53%;
+    --fleetvu-text: 213 27% 84%;
+    --fleetvu-muted: 215 14% 55%;
+
+    --chart-1: 24 95% 53%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 200 70% 50%;
+    --chart-5: 0 72% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: hsl(var(--fleetvu-container) / 0.9);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .glass-panel-dark {
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+  }
+
+  .text-fleetvu-orange {
+    color: hsl(var(--fleetvu-orange));
+  }
+
+  .bg-fleetvu-orange {
+    background-color: hsl(var(--fleetvu-orange));
+  }
+
+  .bg-fleetvu-bg {
+    background-color: hsl(var(--fleetvu-bg));
+  }
+
+  .bg-fleetvu-container {
+    background-color: hsl(var(--fleetvu-container));
+  }
+
+  .text-fleetvu-muted {
+    color: hsl(var(--fleetvu-muted));
+  }
+
+  .hud-blur {
+    filter: blur(4px);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+}
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-orange {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 3s linear infinite;
+}
+
+.animate-pulse-orange {
+  animation: pulse-orange 2s ease-in-out infinite;
+}
+
+.animate-pulse-account-ring {
+  animation: pulse-account-ring 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-account-ring {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.5), inset 0 0 0 1px rgba(249, 115, 22, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px 3px rgba(249, 115, 22, 0.25), inset 0 0 0 1px rgba(249, 115, 22, 0.6);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.4s ease-out;
+}
+
+.leaflet-container {
+  z-index: 10 !important;
+}
+
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important;
+}
+
+.leaflet-control {
+  z-index: 10 !important;
+}
+
+.leaflet-popup-pane {
+  z-index: 11 !important;
+}
