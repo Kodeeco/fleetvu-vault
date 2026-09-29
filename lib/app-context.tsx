@@ -219,26 +219,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.replace(/^#/, '').toLowerCase();
-      // Portal jump hashes own the session — do not restore a stale localStorage user
-      const portalOwnsSession = [
-        'home',
-        'portals',
-        'demo-vault',
-        'demo-driver',
-        'demo-enterprise',
-        'demo-company',
-        'demo-accuvu',
-        'demo-global',
-        'demo-ops',
-        'fv-ops',
-        'fleetvu-ops',
-        'global',
-        'enterprise',
-        'company',
-        'accuvu',
-        'driver',
-        'vault',
-      ].includes(hash);
+      // Portal jump hashes own the session — do not restore a stale localStorage user.
+      // Bare / (no hash) is the SCFuels C55-Pro Vault entry — same treatment.
+      const portalOwnsSession =
+        !hash ||
+        [
+          'home',
+          'portals',
+          'demo-vault',
+          'demo-driver',
+          'demo-enterprise',
+          'demo-company',
+          'demo-accuvu',
+          'demo-global',
+          'demo-ops',
+          'fv-ops',
+          'fleetvu-ops',
+          'global',
+          'enterprise',
+          'company',
+          'accuvu',
+          'driver',
+          'vault',
+        ].includes(hash);
 
       if (portalOwnsSession) {
         localStorage.removeItem('fleetvu_user');

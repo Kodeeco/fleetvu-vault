@@ -87,7 +87,9 @@ function AppInner() {
     logout();
     setView('desktop');
     setGateway('landing');
+    // Keep #home so empty-hash SCFuels default does not bounce straight back into demo vault
     clearHash();
+    setHash('home');
   }, [logout, setView, updatePhase]);
 
   const enterDemoVault = useCallback(
@@ -210,12 +212,23 @@ function AppInner() {
   const applyHashRoute = useCallback(
     (rawHash: string) => {
       const hash = rawHash.replace(/^#/, '').toLowerCase();
-      // Empty hash = leave current session alone (refresh-safe)
-      if (!hash) return;
+
+      // SCFuels C55-Pro pilot: bare / opens the Vault lock screen (not the 3-product chooser).
+      // Multi-portal landing stays available at #home / #portals for later.
+      if (!hash) {
+        enterDemoVault();
+        return;
+      }
 
       if (hash === 'home' || hash === 'portals') {
-        hardLogoutToLanding();
-        clearHash();
+        setAdminPreview(false);
+        setAdminReturnUser(null);
+        updatePhase(null);
+        clearUxDemoEnterprise();
+        logout();
+        setView('desktop');
+        setGateway('landing');
+        setHash('home');
         return;
       }
       if (hash === 'demo-vault' || hash === 'demo-driver') {
@@ -262,7 +275,15 @@ function AppInner() {
         setGateway('driver_onboarding');
       }
     },
-    [enterDemoAccuVu, enterDemoEnterprise, enterDemoGlobal, enterDemoVault, hardLogoutToLanding, logout, updatePhase],
+    [
+      enterDemoAccuVu,
+      enterDemoEnterprise,
+      enterDemoGlobal,
+      enterDemoVault,
+      logout,
+      setView,
+      updatePhase,
+    ],
   );
 
   // Deep-link hashes — always work, even when already logged in
