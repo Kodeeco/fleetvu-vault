@@ -67,7 +67,7 @@ import {
   buildWeeklySafetyDigestEmail,
   formatDigestPlainText,
 } from '@/lib/session-digest';
-import { isScfuelsTrialUser, SCFUELS_TRIAL } from '@/lib/scfuels-trial';
+import { isScfuelsTrialUser } from '@/lib/scfuels-trial';
 import { resolveCompanyLogoUrl } from '@/lib/company-branding';
 
 const LOCKED_VEHICLE_KEY = 'class8_tractor_sleeper';
