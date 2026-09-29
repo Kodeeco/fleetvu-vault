@@ -54,6 +54,8 @@ export interface Company {
   renewal_status?: string | null;
   health_score?: number | null;
   last_activity_at?: string | null;
+  /** Public wordmark URL for Vault / HUD dark UI */
+  logo_url?: string | null;
 }
 
 export interface Driver {

@@ -18,6 +18,7 @@ import {
   X,
   Shield,
   AlertCircle,
+  ImagePlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -98,6 +99,8 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
   const [data, setData] = useState<UnifiedOnboardingData>(DEFAULT_DATA);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [locationDraft, setLocationDraft] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -186,6 +189,29 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
     patch({ fleetLocations: data.fleetLocations.filter((l) => l !== loc) });
   };
 
+  const onLogoPick = (fileList: FileList | null) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setSubmitError('Logo must be an image (PNG or SVG preferred for dark Vault UI).');
+      return;
+    }
+    if (file.size > 2_000_000) {
+      setSubmitError('Logo must be 2MB or smaller.');
+      return;
+    }
+    setSubmitError(null);
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setLogoPreview(typeof reader.result === 'string' ? reader.result : null);
+    reader.readAsDataURL(file);
+  };
+
+  const clearLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+  };
+
   const handleSubmit = async () => {
     const fleetLocations =
       data.fleetLocations.length > 0
@@ -205,6 +231,15 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
     setSubmitting(true);
     setSubmitError(null);
     try {
+      let logoPayload: { base64: string; mimeType: string; fileName?: string } | null = null;
+      if (logoFile && logoPreview) {
+        logoPayload = {
+          base64: logoPreview,
+          mimeType: logoFile.type || 'image/png',
+          fileName: logoFile.name,
+        };
+      }
+
       const res = await fetch('/api/onboarding/provision', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,6 +247,7 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
           data: payload,
           actor,
           sendWelcomeEmail: true,
+          logo: logoPayload,
         }),
       });
       const result = (await res.json()) as OnboardingTransactionResult;
@@ -374,6 +410,51 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
                       onChange={(e) => patch({ fleetSizeEstimate: Number(e.target.value) || 0 })}
                       className="border-slate-700 bg-slate-950 text-white"
                     />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+                  <Label className="mb-1.5 flex items-center gap-2 text-slate-300">
+                    <ImagePlus className="h-4 w-4 text-amber-400" />
+                    Company logo (Vault app header)
+                  </Label>
+                  <p className="mb-3 text-[11px] text-slate-500 leading-relaxed">
+                    Upload a white / light wordmark on transparent background. It appears at the top of
+                    the driver Vault lock screen — same placement as the SCFuels prototype.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex h-16 w-40 items-center justify-center rounded-lg border border-dashed border-slate-600 bg-black/80 px-3">
+                      {logoPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={logoPreview}
+                          alt="Logo preview"
+                          className="max-h-12 max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-slate-600">Preview on dark</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        className="max-w-xs cursor-pointer border-slate-700 bg-slate-900 text-slate-300 file:mr-3 file:rounded file:border-0 file:bg-amber-500/20 file:px-2 file:py-1 file:text-amber-200"
+                        onChange={(e) => {
+                          onLogoPick(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                      {logoFile && (
+                        <button
+                          type="button"
+                          onClick={clearLogo}
+                          className="text-left text-[11px] text-slate-500 hover:text-red-300"
+                        >
+                          Remove logo
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </>
@@ -576,6 +657,14 @@ function UnifiedOnboardingWizardInner({ actor, onComplete }: UnifiedOnboardingWi
                       <Badge variant="outline" className="border-slate-600 text-slate-300">
                         {data.planTier.toUpperCase()}
                       </Badge>
+                      {logoPreview && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={logoPreview}
+                          alt=""
+                          className="ml-auto h-5 w-auto max-w-[80px] object-contain opacity-90"
+                        />
+                      )}
                     </div>
                     <div className="ml-6 flex items-center gap-2 text-slate-300">
                       <Users className="h-4 w-4 text-violet-400" />

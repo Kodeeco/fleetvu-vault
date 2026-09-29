@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -48,6 +47,7 @@ import {
 } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/lib/app-context';
+import { resolveCompanyLogoUrl } from '@/lib/company-branding';
 import {
   type CapturedEvidence,
   buildIncidentFileName,
@@ -57,6 +57,15 @@ import {
   uploadIncidentEvidence,
 } from '@/lib/incident-evidence';
 
+const STEP_LABELS = [
+  'Photos',
+  'Vehicle',
+  'License',
+  'Witnesses',
+  'Impact',
+  'Submit',
+] as const;
+
 interface IncidentWizardProps {
   onClose: () => void;
   currentGps: { lat: number; lng: number };
@@ -65,6 +74,7 @@ interface IncidentWizardProps {
 
 export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWizardProps) {
   const { user } = useApp();
+  const brandLogo = resolveCompanyLogoUrl(user);
   const [screen, setScreen] = useState(1);
   const [evidence, setEvidence] = useState<Record<string, CapturedEvidence>>({});
   const [targetType, setTargetType] = useState<string>('');
@@ -99,7 +109,10 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
     targetType === 'fixed_object' ||
     (Boolean(targetType) && Boolean(vehicleYear) && Boolean(vehicleMake) && Boolean(vehicleModel) && plateNumber.trim().length >= 3);
   const canProceedScreen3 =
-    targetType === 'fixed_object' || (otherDriverName.trim().length >= 2 && otherLicenseNumber.trim().length >= 2);
+    targetType === 'fixed_object' ||
+    (otherDriverName.trim().length >= 2 &&
+      otherLicenseNumber.trim().length >= 2 &&
+      Boolean(evidence.other_license));
   const canProceedScreen4 = true; // witnesses optional
   const canProceedScreen5 = Boolean(impactAngle && fleetMotion && targetMotion && lane);
 
@@ -143,7 +156,10 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
           const recognition = new SpeechRecognition() as {
             continuous: boolean;
             interimResults: boolean;
-            onresult: (event: { results: { 0: { transcript: string } }[] }) => void;
+            onresult: (event: {
+              resultIndex: number;
+              results: ArrayLike<{ 0: { transcript: string }; isFinal?: boolean }>;
+            }) => void;
             onend: () => void;
             start: () => void;
             stop: () => void;
@@ -151,8 +167,13 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
           recognition.continuous = true;
           recognition.interimResults = false;
           recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            setVoiceTranscript((prev) => (prev ? prev + ' ' : '') + transcript);
+            let chunk = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              chunk += event.results[i][0]?.transcript || '';
+            }
+            const next = chunk.trim();
+            if (!next) return;
+            setVoiceTranscript((prev) => (prev ? `${prev} ${next}` : next));
           };
           recognition.onend = () => setIsRecording(false);
           recognition.start();
@@ -467,12 +488,22 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
   if (submitted) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6">
+        {brandLogo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={brandLogo}
+            alt={user?.companyName || 'Company'}
+            className="h-8 w-auto max-w-[180px] object-contain mb-4 opacity-90"
+          />
+        )}
         <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center mb-4">
           <Check className="w-12 h-12 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-white mb-2">Report Completed &amp; Sent</h2>
         <p className="text-slate-300 mb-1 text-center text-sm">
-          Your incident file is logged in your company Accident module.
+          {user?.companyName
+            ? `Logged to the ${user.companyName} Accident module.`
+            : 'Your incident file is logged in your company Accident module.'}
         </p>
         <p className="text-orange-400 mb-2 text-center font-mono text-xs break-all px-2">{fileName}</p>
         <p className="text-slate-400 mb-4 text-center text-sm">
@@ -521,16 +552,40 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
       />
       {/* Header */}
       <div className="bg-slate-800 px-4 py-3 flex items-center justify-between border-b border-slate-700">
-        <div>
-          <h2 className="text-lg font-bold text-white">Report Incident</h2>
-          <p className="text-xs text-slate-400">Step {screen} of {TOTAL_STEPS} — follow the screen, then tap Next</p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            {brandLogo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={brandLogo}
+                alt={user?.companyName || 'Company'}
+                className="h-4 w-auto max-w-[100px] object-contain"
+              />
+            )}
+            <h2 className="text-lg font-bold text-white truncate">Report Incident</h2>
+          </div>
+          <p className="text-xs text-slate-400">
+            Step {screen} of {TOTAL_STEPS} — {STEP_LABELS[screen - 1]}
+          </p>
         </div>
-        <Button size="sm" variant="ghost" className="text-slate-400" onClick={onClose}>
+        <Button size="sm" variant="ghost" className="text-slate-400 shrink-0" onClick={onClose}>
           Cancel
         </Button>
       </div>
 
       <Progress value={(screen / TOTAL_STEPS) * 100} className="h-1 bg-slate-700" />
+      <div className="px-4 pt-1.5 flex justify-between gap-1">
+        {STEP_LABELS.map((label, i) => (
+          <span
+            key={label}
+            className={`text-[9px] font-semibold uppercase tracking-wide truncate ${
+              i + 1 === screen ? 'text-orange-400' : i + 1 < screen ? 'text-slate-500' : 'text-slate-700'
+            }`}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
       {submitError && (
         <div className="mx-4 mt-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {submitError}
@@ -732,7 +787,10 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
           <div className="space-y-4 animate-fade-in">
             <div>
               <h3 className="text-lg font-bold text-white mb-1">Other Driver / License &amp; Insurance</h3>
-              <p className="text-sm text-slate-400">Enter details, then photograph license and insurance card.</p>
+              <p className="text-sm text-slate-400">
+                Enter name and license #, then photograph the license (required) and insurance card
+                (recommended).
+              </p>
             </div>
             {targetType === 'fixed_object' ? (
               <div className="bg-slate-800 rounded-lg p-3 text-sm text-slate-400">No other driver for fixed-object impacts.</div>

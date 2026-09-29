@@ -27,6 +27,7 @@ import { AuthorizationGate } from '@/components/auth/authorization-gate';
 import { PostStatusBadge } from '@/components/hud/post-status-badge';
 import { shouldBypassGate } from '@/lib/testing-mode';
 import { isScfuelsTrialUser, SCFUELS_TRIAL } from '@/lib/scfuels-trial';
+import { resolveCompanyLogoUrl, companyBrandTagline } from '@/lib/company-branding';
 import { EDGE_FILTER_THRESHOLD_M } from '@/lib/edge-filter';
 
 interface VaultLockScreenProps {
@@ -71,6 +72,8 @@ export function VaultLockScreen({
   }, [user]);
 
   const trialBranded = isScfuelsTrialUser(user);
+  const brandLogo = resolveCompanyLogoUrl(user);
+  const brandTagline = companyBrandTagline(user);
   const truck = user.truckNumber || SCFUELS_TRIAL.trucks[0];
   const hardware = user.sensorHardware || SCFUELS_TRIAL.hardware;
   const depot = user.depot || user.location || SCFUELS_TRIAL.depot;
@@ -159,21 +162,27 @@ export function VaultLockScreen({
           <Lock className="w-3.5 h-3.5 text-white/85 drop-shadow" />
         </div>
 
-        {trialBranded && (
+        {brandLogo && (
           <div className="mt-2.5 mx-auto w-full max-w-[340px] rounded-xl border border-white/10 bg-black/70 backdrop-blur-md px-3 py-2.5 shadow-lg shadow-black/50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={SCFUELS_TRIAL.logoWhite}
-              alt="SC Fuels"
+              src={brandLogo}
+              alt={company}
               className="mx-auto h-9 w-auto max-w-[220px] object-contain object-center"
             />
-            <p className="mt-1.5 text-center text-[10px] font-semibold text-cyan-200/90 tracking-wide">
-              {SCFUELS_TRIAL.tagline}
-            </p>
-            <p className="text-center text-[9px] text-slate-400 mt-0.5 font-mono">
-              Truck {truck} · FWD {SCFUELS_TRIAL.channels.channel_forward_range_m}m · L/R{' '}
-              {SCFUELS_TRIAL.channels.channel_left_range_m}m · EDGE @ {EDGE_FILTER_THRESHOLD_M}m
-            </p>
+            {brandTagline && (
+              <p className="mt-1.5 text-center text-[10px] font-semibold text-cyan-200/90 tracking-wide">
+                {brandTagline}
+              </p>
+            )}
+            {(trialBranded || user.truckNumber) && (
+              <p className="text-center text-[9px] text-slate-400 mt-0.5 font-mono">
+                Truck {truck}
+                {trialBranded
+                  ? ` · FWD ${SCFUELS_TRIAL.channels.channel_forward_range_m}m · L/R ${SCFUELS_TRIAL.channels.channel_left_range_m}m · EDGE @ ${EDGE_FILTER_THRESHOLD_M}m`
+                  : ''}
+              </p>
+            )}
           </div>
         )}
 
@@ -219,11 +228,11 @@ export function VaultLockScreen({
         >
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10">
             <div className="flex items-center gap-2 min-w-0">
-              {trialBranded ? (
+              {brandLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={SCFUELS_TRIAL.logoWhite}
-                  alt="SC Fuels"
+                  src={brandLogo}
+                  alt={company}
                   className="h-5 w-auto max-w-[110px] object-contain object-left"
                 />
               ) : (

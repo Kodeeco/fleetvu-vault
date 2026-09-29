@@ -18,6 +18,8 @@ export interface AuthUser {
   location?: string;
   planTier?: PlanTier;
   companyId?: string;
+  /** Customer wordmark for Vault / HUD (dark UI) */
+  companyLogoUrl?: string;
   pinCode?: string;
   trialStartDate?: string;
   trialDurationDays?: number;

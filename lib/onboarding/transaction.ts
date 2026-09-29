@@ -15,6 +15,10 @@ import {
 } from './schema';
 import { validateHierarchy, type HierarchySnapshot } from './hierarchy';
 import type { OnboardingActor, OnboardingTransactionResult } from './types';
+import {
+  uploadCompanyLogo,
+  type CompanyLogoUpload,
+} from '@/lib/company-logo-upload';
 
 export type { OnboardingActor, OnboardingTransactionResult };
 
@@ -68,7 +72,11 @@ async function rollback(stack: RollbackStack): Promise<void> {
 export async function executeOnboardingTransaction(
   raw: UnifiedOnboardingData,
   actor: OnboardingActor,
-  options: { sendWelcomeEmail?: boolean; appUrl?: string } = {},
+  options: {
+    sendWelcomeEmail?: boolean;
+    appUrl?: string;
+    logo?: CompanyLogoUpload | null;
+  } = {},
 ): Promise<OnboardingTransactionResult> {
   const parsed = unifiedOnboardingSchema.safeParse(raw);
   if (!parsed.success) {
@@ -115,6 +123,11 @@ export async function executeOnboardingTransaction(
       throw new Error(companyErr?.message || 'Failed to create company');
     }
     stack.companyId = company.id;
+
+    // 1b. Optional customer wordmark (Vault lock / HUD branding)
+    if (options.logo?.base64) {
+      await uploadCompanyLogo(company.id, options.logo);
+    }
 
     // 2. Fleet director / primary contact
     const { data: contact, error: contactErr } = await supabase

@@ -68,6 +68,7 @@ import {
   formatDigestPlainText,
 } from '@/lib/session-digest';
 import { isScfuelsTrialUser, SCFUELS_TRIAL } from '@/lib/scfuels-trial';
+import { resolveCompanyLogoUrl } from '@/lib/company-branding';
 
 const LOCKED_VEHICLE_KEY = 'class8_tractor_sleeper';
 const LOCKED_HW_KEY = 'c55_pro_forward_lr';
@@ -206,6 +207,7 @@ export function MobileHUD({
   );
 
   const scfuelsTrial = isScfuelsTrialUser(user);
+  const brandLogo = resolveCompanyLogoUrl(user);
 
   const postStale =
     !postCheck.lastRunAt ||
@@ -619,11 +621,11 @@ export function MobileHUD({
               V
             </div>
             <div className="min-w-0 text-left">
-              {scfuelsTrial ? (
+              {brandLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={SCFUELS_TRIAL.logoWhite}
-                  alt="SC Fuels"
+                  src={brandLogo}
+                  alt={user?.companyName || 'Company'}
                   className="h-4 w-auto max-w-[120px] object-contain object-left mb-0.5"
                 />
               ) : (
@@ -731,12 +733,12 @@ export function MobileHUD({
 
         <div className="mx-2.5 mt-2 flex items-center justify-between rounded-lg border border-slate-700/80 bg-[#0d141e] px-2.5 py-2">
           <div className="flex items-center gap-2 min-w-0">
-            {scfuelsTrial ? (
+            {brandLogo ? (
               <div className="flex h-7 items-center justify-center rounded-md bg-black/80 border border-white/10 px-1.5 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={SCFUELS_TRIAL.logoWhite}
-                  alt="SC Fuels"
+                  src={brandLogo}
+                  alt={user?.companyName || 'Company'}
                   className="h-3.5 w-auto max-w-[72px] object-contain"
                 />
               </div>
@@ -747,7 +749,7 @@ export function MobileHUD({
             )}
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-white truncate">
-                {scfuelsTrial ? 'SCFuels' : 'Driver'} Profile: {user?.name || 'Driver'}
+                {user?.companyName || (scfuelsTrial ? 'SCFuels' : 'Driver')} Profile: {user?.name || 'Driver'}
               </p>
               <p className="text-[9px] text-slate-400">
                 Truck {user?.truckNumber || '#SCF-101'}

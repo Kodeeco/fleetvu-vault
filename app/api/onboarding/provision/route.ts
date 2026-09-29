@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     data?: UnifiedOnboardingData;
     actor?: { email: string; role: string; name?: string };
     sendWelcomeEmail?: boolean;
+    logo?: { base64: string; mimeType: string; fileName?: string } | null;
   };
 
   try {
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
   const result = await executeOnboardingTransaction(parsed.data, body.actor, {
     sendWelcomeEmail: body.sendWelcomeEmail !== false,
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    logo: body.logo || null,
   });
 
   if (!result.success) {

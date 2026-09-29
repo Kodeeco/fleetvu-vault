@@ -160,13 +160,17 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
           }
           if (keyRecord.role_type === 'executive') {
             let planTier: 'basic' | 'pro' | 'proplus' = 'basic';
+            let companyLogoUrl: string | undefined;
             if (keyRecord.company_id) {
               const { data: company } = await supabase
                 .from('companies')
-                .select('plan_tier')
+                .select('plan_tier, logo_url')
                 .eq('id', keyRecord.company_id)
                 .maybeSingle();
-              if (company) planTier = (company.plan_tier as 'basic' | 'pro' | 'proplus') || 'basic';
+              if (company) {
+                planTier = (company.plan_tier as 'basic' | 'pro' | 'proplus') || 'basic';
+                companyLogoUrl = (company as { logo_url?: string }).logo_url || undefined;
+              }
             }
             const user: AuthUser = {
               role: 'executive' as UserRole,
@@ -174,6 +178,7 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
               name: email.split('@')[0],
               companyName: keyRecord.company_name || undefined,
               companyId: keyRecord.company_id || undefined,
+              companyLogoUrl,
               planTier,
             };
             completeLogin(user);
@@ -185,12 +190,22 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
               setLoading(false);
               return;
             }
+            let companyLogoUrl: string | undefined;
+            if (keyRecord.company_id) {
+              const { data: company } = await supabase
+                .from('companies')
+                .select('logo_url')
+                .eq('id', keyRecord.company_id)
+                .maybeSingle();
+              companyLogoUrl = (company as { logo_url?: string } | null)?.logo_url || undefined;
+            }
             const user: AuthUser = {
               role: 'driver' as UserRole,
               email,
               name: email.split('@')[0],
               companyName: keyRecord.company_name || undefined,
               companyId: keyRecord.company_id || undefined,
+              companyLogoUrl,
               planTier: 'proplus',
               pinCode: pin,
             };
@@ -257,15 +272,17 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
       if (provisioned && provisioned.status !== 'suspended' && provisioned.status !== 'revoked') {
         let planTier: 'basic' | 'pro' | 'proplus' = (provisioned as { plan_tier?: string }).plan_tier as 'basic' | 'pro' | 'proplus' || 'basic';
         let companyId = provisioned.company_id;
+        let companyLogoUrl: string | undefined;
         if (provisioned.company_name) {
           const { data: company } = await supabase
             .from('companies')
-            .select('id, plan_tier')
+            .select('id, plan_tier, logo_url')
             .ilike('name', provisioned.company_name)
             .maybeSingle();
           if (company) {
             planTier = (company.plan_tier as 'basic' | 'pro' | 'proplus') || 'basic';
             companyId = company.id;
+            companyLogoUrl = (company as { logo_url?: string }).logo_url || undefined;
           }
         }
         const mappedRole: UserRole =
@@ -288,6 +305,7 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
           companyName: provisioned.company_name || undefined,
           planTier,
           companyId: companyId || undefined,
+          companyLogoUrl,
           provisionedRole: provisioned.role,
           scopedCompanyIds: (provisioned as { scoped_company_ids?: string[] }).scoped_company_ids || [],
           assignedLocations: (provisioned as { assigned_locations?: string[] }).assigned_locations || [],
