@@ -25,15 +25,15 @@ export function usePortalMobileSync(options?: {
   useEffect(() => {
     if (options?.enabled === false) return;
 
-    const manager = new PortalMobileSyncManager({
+    const manager: PortalMobileSyncManager = new PortalMobileSyncManager({
       deviceId: getOrCreateDeviceId(),
       companyId: options?.companyId ?? null,
       onStateChange: (s) => {
         setState(s);
-        setPendingCount(manager.pendingCount);
+        setPendingCount(managerRef.current?.pendingCount ?? 0);
       },
       onError: (err) => setLastError(err.message),
-      onEventAcked: () => setPendingCount(manager.pendingCount),
+      onEventAcked: () => setPendingCount(managerRef.current?.pendingCount ?? 0),
     });
     managerRef.current = manager;
     manager.start();

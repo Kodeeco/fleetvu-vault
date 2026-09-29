@@ -210,18 +210,18 @@ export async function POST(req: NextRequest) {
       };
 
       if (!isDesktop && client) {
-        await client
-          .from('driver_access_keycodes')
-          .insert({
+        try {
+          await client.from('driver_access_keycodes').insert({
             keycode,
             driver_name: entry.full_name,
             company_id: portal.company_id,
             company_name: portal.company_name,
             status: 'active',
             truck_number: entry.truck_number,
-          })
-          .then(() => undefined)
-          .catch(() => undefined);
+          });
+        } catch {
+          // ignore keycode persist failures
+        }
       }
 
       await dispatchCorporateEmail(

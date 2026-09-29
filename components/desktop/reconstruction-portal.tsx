@@ -1914,7 +1914,7 @@ function buildImpactZoneRecord(
   const hasRear = hardwareProfile === 'c55_pro_forward_lr_rear';
   const isC93 = hardwareProfile === 'c93_us4_gap' || hardwareProfile === 'c93_us4_gap_lane';
 
-  const hitId =
+  const hitId: string =
     otherMeta.geometry === 'left_front'
       ? 'left_front'
       : otherMeta.geometry === 'frontal'

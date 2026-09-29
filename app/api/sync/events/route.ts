@@ -82,26 +82,30 @@ export async function POST(req: NextRequest) {
         });
 
         if (sb) {
-          await sb.from('chain_of_custody_events').insert({
-            id: custody.id,
-            seq: custody.seq,
-            artifact_type: custody.artifact_type,
-            artifact_id: custody.artifact_id,
-            company_id: custody.company_id,
-            action: custody.action,
-            actor_account_id: custody.actor_account_id,
-            actor_email: custody.actor_email,
-            actor_role: custody.actor_role,
-            device_id: custody.device_id,
-            device_platform: custody.device_platform,
-            app_version: custody.app_version,
-            network_timestamp: custody.network_timestamp,
-            server_timestamp: custody.server_timestamp,
-            artifact_hash: custody.artifact_hash,
-            prev_hash: custody.prev_hash,
-            record_hash: custody.record_hash,
-            metadata: custody.metadata,
-          }).then(() => undefined).catch(() => undefined);
+          try {
+            await sb.from('chain_of_custody_events').insert({
+              id: custody.id,
+              seq: custody.seq,
+              artifact_type: custody.artifact_type,
+              artifact_id: custody.artifact_id,
+              company_id: custody.company_id,
+              action: custody.action,
+              actor_account_id: custody.actor_account_id,
+              actor_email: custody.actor_email,
+              actor_role: custody.actor_role,
+              device_id: custody.device_id,
+              device_platform: custody.device_platform,
+              app_version: custody.app_version,
+              network_timestamp: custody.network_timestamp,
+              server_timestamp: custody.server_timestamp,
+              artifact_hash: custody.artifact_hash,
+              prev_hash: custody.prev_hash,
+              record_hash: custody.record_hash,
+              metadata: custody.metadata,
+            });
+          } catch {
+            // ignore custody persist failures
+          }
         }
       }
 
