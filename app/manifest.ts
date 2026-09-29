@@ -2,27 +2,39 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'FleetVu Mobile Command',
-    short_name: 'FleetVu',
+    name: 'FleetVu Vault',
+    short_name: 'Vault',
     description:
-      'Advanced fleet telemetry, incident reconstruction, and driver safety platform.',
+      'FleetVu Forensic Vault — SCFuels C55-Pro evaluation, sealed telemetry, and driver safety.',
     start_url: '/',
     display: 'standalone',
     background_color: '#0F172A',
-    theme_color: '#F97316',
+    theme_color: '#0F172A',
     orientation: 'any',
     categories: ['business', 'navigation', 'productivity'],
     icons: [
       {
-        src: '/icon-192.webp',
+        src: '/icon-192.png',
         sizes: '192x192',
-        type: 'image/webp',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon-192-maskable.png',
+        sizes: '192x192',
+        type: 'image/png',
         purpose: 'maskable',
       },
       {
-        src: '/icon-512.webp',
+        src: '/icon-512-maskable.png',
         sizes: '512x512',
-        type: 'image/webp',
+        type: 'image/png',
         purpose: 'maskable',
       },
     ],
