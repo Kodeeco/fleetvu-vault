@@ -108,19 +108,23 @@ export async function POST(req: NextRequest) {
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (url && key) {
       const sb = createClient(url, key);
-      await sb.from('legal_export_artifacts').insert({
-        export_id: artifact.manifest.exportId,
-        case_id: body.caseId,
-        company_id: body.companyId ?? null,
-        company_name: body.companyName ?? null,
-        incident_id: body.incidentId ?? null,
-        manifest: artifact.manifest,
-        seal_hash: artifact.sealHash,
-        content_hash: artifact.manifest.integrity.contentHash,
-        encrypted: body.encrypt === true,
-        exported_by_email: body.exportedBy.email,
-        exported_by_role: body.exportedBy.role,
-      }).then(() => undefined).catch((err) => console.warn('[Legal Export] persist:', err));
+      try {
+        await sb.from('legal_export_artifacts').insert({
+          export_id: artifact.manifest.exportId,
+          case_id: body.caseId,
+          company_id: body.companyId ?? null,
+          company_name: body.companyName ?? null,
+          incident_id: body.incidentId ?? null,
+          manifest: artifact.manifest,
+          seal_hash: artifact.sealHash,
+          content_hash: artifact.manifest.integrity.contentHash,
+          encrypted: body.encrypt === true,
+          exported_by_email: body.exportedBy.email,
+          exported_by_role: body.exportedBy.role,
+        });
+      } catch (err) {
+        console.warn('[Legal Export] persist:', err);
+      }
 
       await sb.from('chain_of_custody_events').insert({
         id: custody.id,
