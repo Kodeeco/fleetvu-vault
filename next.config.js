@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // SWC minify strips escapes in Radix Progress template literals → SyntaxError in chunk 213.
+  swcMinify: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
