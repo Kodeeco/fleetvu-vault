@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "dev:local": "next dev -p 3000",
-    "build": "next build",
+    "build": "node scripts/patch-radix-progress.cjs && next build",
+    "postinstall": "node scripts/patch-radix-progress.cjs",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

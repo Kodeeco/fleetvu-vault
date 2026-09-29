@@ -2,6 +2,8 @@
 const nextConfig = {
   // SWC minify strips escapes in Radix Progress template literals → SyntaxError in chunk 213.
   swcMinify: false,
+  // Force new asset hashes each production build so sticky CDN/browser caches cannot serve old broken chunks.
+  generateBuildId: async () => `fv-${Date.now().toString(36)}`,
   eslint: {
     ignoreDuringBuilds: true,
   },
