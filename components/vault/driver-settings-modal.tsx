@@ -27,7 +27,6 @@ interface DriverSettingsModalProps {
   onClose: () => void;
   settings: DriverSettingsState;
   onChange: (next: DriverSettingsState) => void;
-  sensorSerial?: string;
   sensorPairedLabel?: string;
 }
 
@@ -39,7 +38,6 @@ export function DriverSettingsModal({
   onClose,
   settings,
   onChange,
-  sensorSerial = 'FV-ELITE-67F2',
   sensorPairedLabel = 'Sep 28',
 }: DriverSettingsModalProps) {
   if (!open) return null;
@@ -148,11 +146,7 @@ export function DriverSettingsModal({
                 <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">Connected</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[10px] mb-3">
-              <div className="rounded-lg border border-slate-700/60 bg-slate-950/50 px-2.5 py-2">
-                <p className="text-slate-500 uppercase tracking-wide">Serial</p>
-                <p className="font-mono text-slate-200 mt-0.5">{sensorSerial}</p>
-              </div>
+            <div className="grid grid-cols-1 gap-2 text-[10px] mb-3">
               <div className="rounded-lg border border-slate-700/60 bg-slate-950/50 px-2.5 py-2">
                 <p className="text-slate-500 uppercase tracking-wide">Paired</p>
                 <p className="font-mono text-slate-200 mt-0.5">{sensorPairedLabel}</p>

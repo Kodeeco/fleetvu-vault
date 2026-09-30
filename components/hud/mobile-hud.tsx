@@ -27,14 +27,11 @@ import {
   ArrowRight,
   MapPin,
   Lock,
-  Wifi,
-  Battery,
   Settings,
   User,
   Cloud,
   Power,
   RefreshCw,
-  Volume2,
   Mail,
 } from 'lucide-react';
 import {
@@ -238,7 +235,6 @@ export function MobileHUD({
   };
 
   const safetyScore = 99.9;
-  const unitId = 'FV-ELITE-A7X2';
   const [gpsLat, setGpsLat] = useState(32.7173);
   const [gpsLng, setGpsLng] = useState(-117.1602);
   const [gpsLive, setGpsLive] = useState(false);
@@ -604,16 +600,6 @@ export function MobileHUD({
       )}
       style={driverSettings.nightMode ? { filter: `brightness(${driverSettings.brightness / 100 + 0.35})` } : undefined}
     >
-      <div className="shrink-0 flex items-center justify-between px-3 py-1 bg-black/50 text-[9px] text-slate-500">
-        <span className="font-mono">{clock.toLocaleTimeString([], { hour12: true })}</span>
-        <span className="inline-flex items-center gap-2">
-          <span className="text-emerald-400 font-bold">LINK</span>
-          <span className="inline-flex items-center gap-0.5 text-orange-300">
-            <Battery className="w-3 h-3" /> 82%
-          </span>
-        </span>
-      </div>
-
       <header className="shrink-0 border-b border-slate-800/80 bg-[#0a1018] px-3 py-2">
         <div className="flex items-center justify-between gap-2">
           <button type="button" className="flex items-center gap-2.5 min-w-0" onClick={onLockVault || logout} title="Lock Vault">
@@ -634,22 +620,21 @@ export function MobileHUD({
               ) : (
                 <p className="text-[13px] font-bold text-white leading-tight truncate">FleetVu Command</p>
               )}
-              <p className="text-[9px] text-slate-500 leading-tight">
-                {trialMode || scfuelsTrial ? 'C55-Pro Trial · Forensic Vault' : 'Forensic Vault'}
+              <p className="text-[9px] text-slate-500 leading-tight truncate">
+                {user?.name || 'Driver'}
+                {user?.truckNumber ? ` · ${user.truckNumber}` : ''}
               </p>
             </div>
           </button>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black text-white shadow-[0_0_8px_rgba(220,38,38,0.45)]">
+            <span className="font-mono text-[9px] text-slate-500 tabular-nums">
+              {clock.toLocaleTimeString([], { hour12: true })}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black text-white">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
               LIVE
             </span>
-            {trialMode && (
-              <span className="hidden xs:inline-flex rounded border border-cyan-500/40 bg-cyan-500/10 px-1.5 py-0.5 text-[8px] font-black text-cyan-300">
-                C55
-              </span>
-            )}
             <button
               type="button"
               onClick={() => (onLockVault ? onLockVault() : logout())}
@@ -664,24 +649,17 @@ export function MobileHUD({
               <Lock className="w-2.5 h-2.5" />
               VAULT
             </button>
-            <Wifi className={cn('w-3.5 h-3.5', syncState === 'connected' ? 'text-emerald-400' : 'text-amber-400')} />
-            <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
             <button type="button" onClick={() => setSettingsOpen(true)} aria-label="Driver Settings">
               <Settings className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
             </button>
           </div>
         </div>
-        <div className="mt-1 flex items-center justify-between">
-          <span className="font-mono text-[9px] text-slate-600">{unitId}</span>
-          <span className="font-mono text-[9px] text-slate-500">{clock.toLocaleTimeString([], { hour12: true })}</span>
-        </div>
       </header>
 
       {trialMode && (
-        <div className="shrink-0 px-2.5 py-1.5 bg-gradient-to-r from-cyan-950/80 via-slate-950 to-orange-950/50 border-b border-cyan-500/20">
-          <p className="text-[9px] font-bold text-cyan-200/90 tracking-wide">
-            C55-PRO · FWD {forwardRange.toFixed(0)}m · L/R {leftRange.toFixed(0)}m · EDGE @ {EDGE_FILTER_THRESHOLD_M.toFixed(0)}m{' '}
-            {edgeActive ? 'ACTIVE' : 'STANDBY'}
+        <div className="shrink-0 px-2.5 py-1 border-b border-cyan-500/15 bg-cyan-950/40">
+          <p className="text-[9px] font-semibold text-cyan-200/80 tracking-wide">
+            C55-Pro · FWD {forwardRange.toFixed(0)}m · L/R {leftRange.toFixed(0)}m · EDGE {edgeActive ? 'ON' : 'OFF'}
           </p>
         </div>
       )}
@@ -751,12 +729,10 @@ export function MobileHUD({
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[11px] font-bold text-white truncate">
-                {user?.companyName || (scfuelsTrial ? 'SCFuels' : 'Driver')} Profile: {user?.name || 'Driver'}
-              </p>
-              <p className="text-[9px] text-slate-400">
-                Truck {user?.truckNumber || '#SCF-101'}
-                {scfuelsTrial ? ' · C55-Pro Evaluation' : ''}
+              <p className="text-[11px] font-bold text-white truncate">{user?.name || 'Driver'}</p>
+              <p className="text-[9px] text-slate-400 truncate">
+                {user?.truckNumber || '#SCF-101'}
+                {user?.depot || user?.location ? ` · ${user.depot || user.location}` : ''}
               </p>
             </div>
           </div>
@@ -765,7 +741,7 @@ export function MobileHUD({
             onClick={() => setVaultMenuOpen(true)}
             className="shrink-0 inline-flex items-center gap-1 rounded border border-slate-600 bg-slate-900/60 px-2 py-1 text-[9px] font-bold uppercase text-slate-300 hover:text-white"
           >
-            Edit <ChevronDown className="w-3 h-3" />
+            Menu <ChevronDown className="w-3 h-3" />
           </button>
         </div>
 
@@ -840,16 +816,9 @@ export function MobileHUD({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[9px] font-bold uppercase tracking-wider text-orange-400/90">
-                Auto Session Digest · SHA-256
+                Session Digest
               </p>
               <p className="text-[11px] font-bold text-white mt-0.5 leading-snug">{sessionDigest.headline}</p>
-              <p className="text-[9px] text-cyan-300/90 mt-1 leading-snug">
-                {sessionDigest.edgeActive ? 'EDGE ACTIVE' : 'EDGE STANDBY'} · roadside suppression{' '}
-                {sessionDigest.edgeActive ? 'ON' : 'OFF'}
-              </p>
-              <p className="text-[9px] text-slate-500 mt-0.5 font-mono truncate">
-                Seal {sessionDigest.sealFingerprint}
-              </p>
             </div>
             <Button
               size="sm"
@@ -866,7 +835,7 @@ export function MobileHUD({
               className="h-7 flex-1 text-[9px] border-slate-600 text-slate-300"
               onClick={() => void shareDigest()}
             >
-              {digestCopied ? 'Copied' : 'Share / Copy'}
+              {digestCopied ? 'Copied' : 'Share'}
             </Button>
             <Button
               size="sm"
@@ -877,7 +846,7 @@ export function MobileHUD({
               }}
             >
               <Mail className="w-3 h-3" />
-              Weekly Digest Email
+              Email Digest
             </Button>
           </div>
         </div>
@@ -886,53 +855,38 @@ export function MobileHUD({
         <div className="mx-2.5 mt-2 rounded-xl border border-slate-800 bg-[#0a1018] px-3 py-2.5">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Sensor ranges</p>
-            <div className="flex items-center gap-1.5">
-              {edgeActive && (
-                <span className="rounded bg-cyan-500/20 border border-cyan-400/40 px-1.5 py-0.5 text-[8px] font-black text-cyan-300 tracking-wide">
-                  EDGE ACTIVE
-                </span>
-              )}
-              <p className="text-[8px] text-slate-600 text-right">Company admin · locked</p>
-            </div>
+            <p className="text-[8px] text-slate-600">Admin locked</p>
           </div>
           <div className="space-y-2 pointer-events-none select-none">
             <RangeReadonly label="FORWARD" icon={<ArrowUp className="w-3 h-3" />} value={forwardRange} max={10} />
             <RangeReadonly label="LEFT" icon={<ArrowLeft className="w-3 h-3" />} value={leftRange} max={4} />
             <RangeReadonly label="RIGHT" icon={<ArrowRight className="w-3 h-3" />} value={rightRange} max={4} />
           </div>
-          {trialMode && (
-            <p className="mt-2 text-[9px] text-slate-500 leading-snug">
-              Trial profile: FWD 7m · L/R 4m. EDGE @ {EDGE_FILTER_THRESHOLD_M.toFixed(0)}m suppresses static roadside
-              clutter on side channels so outside obstructions don’t flood the event log. Moving hazards still pass.
-            </p>
-          )}
         </div>
 
         <div className="mx-2.5 mt-2 space-y-2 pb-4">
           <button
             type="button"
             onClick={() => setForensicOpen(true)}
-            className="w-full h-12 rounded-xl border-2 border-orange-500 bg-[#16120e] hover:bg-orange-500/15 text-orange-400 font-black text-sm tracking-wide flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(249,115,22,0.15)]"
+            className="w-full h-11 rounded-xl border border-orange-500/50 bg-[#16120e] hover:bg-orange-500/15 text-orange-400 font-bold text-sm tracking-wide flex items-center justify-center gap-2"
           >
             <ShieldAlert className="w-4 h-4" />
-            FORENSIC VAULT
+            Forensic Vault
             <ChevronDown className="w-4 h-4 opacity-70" />
           </button>
 
-          <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-3 py-2.5 flex items-center justify-between gap-2">
+          <div className="rounded-xl border border-slate-700 bg-[#0a1018] px-3 py-2.5 flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold text-white">Daily POST Check</p>
+              <p className="text-[11px] font-bold text-white">Daily POST</p>
               <p className="text-[9px] text-slate-400 truncate">
-                Last Completed:{' '}
                 {postCheck.lastRunAt
-                  ? new Date(postCheck.lastRunAt).toLocaleString([], {
+                  ? `Last: ${new Date(postCheck.lastRunAt).toLocaleString([], {
                       month: 'short',
                       day: 'numeric',
-                      year: 'numeric',
                       hour: 'numeric',
                       minute: '2-digit',
-                    })
-                  : 'Never'}
+                    })}`
+                  : 'Not run yet — tap to start'}
               </p>
             </div>
             <PostStatusBadge
@@ -942,15 +896,6 @@ export function MobileHUD({
               onClick={() => void runPostCheck()}
             />
           </div>
-
-          <Button
-            className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs gap-2 shadow-lg shadow-orange-900/30"
-            disabled={postRunning}
-            onClick={runPostCheck}
-          >
-            <RefreshCw className={cn('w-4 h-4', postRunning && 'animate-spin')} />
-            {postRunning ? 'Running System Self-Test…' : 'Re-Run System Self-Test'}
-          </Button>
         </div>
       </div>
 
