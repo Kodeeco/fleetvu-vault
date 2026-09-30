@@ -66,6 +66,14 @@ const STEP_LABELS = [
   'Submit',
 ] as const;
 
+const INTRO_ITEMS = [
+  { icon: Camera, label: 'Scene photos', hint: 'Min. 2 angles' },
+  { icon: Car, label: 'Other vehicle', hint: 'Plate & details' },
+  { icon: IdCard, label: 'License & insurance', hint: 'Photos + IDs' },
+  { icon: Users, label: 'Witnesses', hint: 'Optional' },
+  { icon: Navigation, label: 'Impact & statement', hint: 'Then submit' },
+] as const;
+
 interface IncidentWizardProps {
   onClose: () => void;
   currentGps: { lat: number; lng: number };
@@ -75,7 +83,7 @@ interface IncidentWizardProps {
 export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWizardProps) {
   const { user } = useApp();
   const brandLogo = resolveCompanyLogoUrl(user);
-  const [screen, setScreen] = useState(1);
+  const [screen, setScreen] = useState(0);
   const [evidence, setEvidence] = useState<Record<string, CapturedEvidence>>({});
   const [targetType, setTargetType] = useState<string>('');
   const [vehicleYear, setVehicleYear] = useState<string>('');
@@ -565,27 +573,33 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
             <h2 className="text-lg font-bold text-white truncate">Report Incident</h2>
           </div>
           <p className="text-xs text-slate-400">
-            Step {screen} of {TOTAL_STEPS} — {STEP_LABELS[screen - 1]}
+            {screen === 0
+              ? 'Company reconstruction package'
+              : `Step ${screen} of ${TOTAL_STEPS} — ${STEP_LABELS[screen - 1]}`}
           </p>
         </div>
         <Button size="sm" variant="ghost" className="text-slate-400 shrink-0" onClick={onClose}>
-          Cancel
+          {screen === 0 ? 'Close' : 'Cancel'}
         </Button>
       </div>
 
-      <Progress value={(screen / TOTAL_STEPS) * 100} className="h-1 bg-slate-700" />
-      <div className="px-4 pt-1.5 flex justify-between gap-1">
-        {STEP_LABELS.map((label, i) => (
-          <span
-            key={label}
-            className={`text-[9px] font-semibold uppercase tracking-wide truncate ${
-              i + 1 === screen ? 'text-orange-400' : i + 1 < screen ? 'text-slate-500' : 'text-slate-700'
-            }`}
-          >
-            {label}
-          </span>
-        ))}
-      </div>
+      {screen > 0 && (
+        <>
+          <Progress value={(screen / TOTAL_STEPS) * 100} className="h-1 bg-slate-700" />
+          <div className="px-4 pt-1.5 flex justify-between gap-1">
+            {STEP_LABELS.map((label, i) => (
+              <span
+                key={label}
+                className={`text-[9px] font-semibold uppercase tracking-wide truncate ${
+                  i + 1 === screen ? 'text-orange-400' : i + 1 < screen ? 'text-slate-500' : 'text-slate-700'
+                }`}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
       {submitError && (
         <div className="mx-4 mt-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {submitError}
@@ -594,6 +608,59 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
 
       {/* Screen content */}
       <div className="flex-1 overflow-y-auto scrollbar-thin p-4">
+        {/* SCREEN 0: Landing / overview before steps */}
+        {screen === 0 && (
+          <div className="space-y-5 animate-fade-in max-w-md mx-auto">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-1">Incident Report</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Capture evidence for your company Accident Reconstruction module. GPS and speed are
+                recorded automatically.
+              </p>
+            </div>
+
+            <div className="bg-slate-800 rounded-xl p-3 flex items-center gap-3 border border-slate-700">
+              <Navigation className="w-5 h-5 text-orange-400 shrink-0" />
+              <div className="flex-1 text-xs text-slate-300 min-w-0">
+                <div className="font-mono truncate">
+                  {currentGps.lat.toFixed(4)}, {currentGps.lng.toFixed(4)}
+                </div>
+                <div className="text-slate-500">{currentSpeed} MPH · live device GPS</div>
+              </div>
+              <Badge className="bg-green-600 shrink-0">Ready</Badge>
+            </div>
+
+            <ul className="space-y-2">
+              {INTRO_ITEMS.map(({ icon: Icon, label, hint }) => (
+                <li
+                  key={label}
+                  className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2.5"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/15 text-orange-400 shrink-0">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{label}</p>
+                    <p className="text-[11px] text-slate-500">{hint}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Report stays in your company tenant only — not shared to FleetVu global admin.
+            </p>
+
+            <Button
+              className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm"
+              onClick={() => setScreen(1)}
+            >
+              Start Report
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        )}
+
         {/* SCREEN 1: Photo Capture */}
         {screen === 1 && (
           <div className="space-y-4 animate-fade-in">
@@ -655,6 +722,9 @@ export function IncidentWizard({ onClose, currentGps, currentSpeed }: IncidentWi
             </div>
 
             <div className="flex items-center justify-between">
+              <Button variant="ghost" className="text-slate-400" onClick={() => setScreen(0)}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back
+              </Button>
               <span className="text-sm text-slate-400">
                 {scenePhotoCount}/4 photos · {canProceedScreen1 ? 'Ready' : 'Need 2 minimum'}
               </span>

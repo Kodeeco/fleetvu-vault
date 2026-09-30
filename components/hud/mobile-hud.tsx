@@ -873,6 +873,15 @@ export function MobileHUD({
         <div className="mx-2.5 mt-2 space-y-2 pb-4">
           <button
             type="button"
+            onClick={() => setShowIncidentWizard(true)}
+            className="w-full h-11 rounded-xl border border-red-500/45 bg-red-950/40 hover:bg-red-500/15 text-red-200 font-bold text-sm tracking-wide flex items-center justify-center gap-2"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Report Incident
+          </button>
+
+          <button
+            type="button"
             onClick={() => setForensicOpen(true)}
             className="w-full h-11 rounded-xl border border-orange-500/50 bg-[#16120e] hover:bg-orange-500/15 text-orange-400 font-bold text-sm tracking-wide flex items-center justify-center gap-2"
           >
