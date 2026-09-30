@@ -335,7 +335,7 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
   };
 
   return (
-    <div className="h-[100dvh] w-full bg-slate-950 text-slate-200 flex flex-col overflow-hidden pt-11">
+    <div className="h-[100dvh] w-full bg-slate-950 text-slate-200 flex flex-col overflow-hidden">
       {/* Top status bar */}
       <div className="shrink-0 border-b border-slate-800/60 bg-slate-900/50 backdrop-blur-md">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-10 py-1.5 flex items-center justify-between">
@@ -350,7 +350,7 @@ export function LoginScreen({ portalMode = 'enterprise' }: { portalMode?: 'enter
         </div>
       </div>
 
-      {/* Main split — columns scroll so Jump bar + form fit the viewport */}
+      {/* Main split — brand panel + form */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <div className="h-full w-full grid lg:grid-cols-[1fr_min(480px,44vw)] gap-0">
           {/* Left: Brand & feature panel (desktop only) */}
