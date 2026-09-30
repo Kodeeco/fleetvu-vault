@@ -188,7 +188,7 @@ export function VaultLockScreen({
             <img
               src={brandLogo}
               alt={company}
-              className="mx-auto h-9 w-auto max-w-[220px] object-contain object-center"
+              className="mx-auto h-12 w-auto max-w-[260px] object-contain object-center"
             />
             {brandTagline && (
               <p className="mt-1.5 text-center text-[10px] font-semibold text-cyan-200/90 tracking-wide">

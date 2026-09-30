@@ -616,17 +616,20 @@ export function MobileHUD({
 
       <header className="shrink-0 border-b border-slate-800/80 bg-[#0a1018] px-3 py-2">
         <div className="flex items-center justify-between gap-2">
-          <button type="button" className="flex items-center gap-2 min-w-0" onClick={onLockVault || logout} title="Lock Vault">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 text-[14px] font-black text-slate-950 shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.35)]">
-              V
-            </div>
+          <button type="button" className="flex items-center gap-2.5 min-w-0" onClick={onLockVault || logout} title="Lock Vault">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/FleetVu-VaultBadge.jpg"
+              alt="FleetVu Vault"
+              className="h-10 w-10 rounded-full object-cover object-center shrink-0 ring-1 ring-amber-400/35 shadow-[0_0_14px_rgba(251,191,36,0.35)]"
+            />
             <div className="min-w-0 text-left">
               {brandLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={brandLogo}
                   alt={user?.companyName || 'Company'}
-                  className="h-4 w-auto max-w-[120px] object-contain object-left mb-0.5"
+                  className="h-7 w-auto max-w-[160px] object-contain object-left mb-0.5"
                 />
               ) : (
                 <p className="text-[13px] font-bold text-white leading-tight truncate">FleetVu Command</p>
