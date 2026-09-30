@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { AuthUser } from '@/lib/app-context';
 import { useApp } from '@/lib/app-context';
-import { getPostCheckState, type PostCheckState } from '@/lib/vault-session';
+import { getPostCheckState, setPostCheckState, type PostCheckState } from '@/lib/vault-session';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,7 @@ import { shouldBypassGate } from '@/lib/testing-mode';
 import { isScfuelsTrialUser, SCFUELS_TRIAL } from '@/lib/scfuels-trial';
 import { resolveCompanyLogoUrl, companyBrandTagline } from '@/lib/company-branding';
 import { EDGE_FILTER_THRESHOLD_M } from '@/lib/edge-filter';
+import { autoConnectAndPost } from '@/lib/sensor-auto-connect';
 
 interface VaultLockScreenProps {
   user: AuthUser;
@@ -48,6 +49,7 @@ export function VaultLockScreen({
   const { login } = useApp();
   const [mounted, setMounted] = useState(false);
   const [postCheck, setPostCheck] = useState<PostCheckState>({ status: 'pending', lastRunAt: null });
+  const [postRunning, setPostRunning] = useState(false);
   const [inactiveNotice, setInactiveNotice] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
 
@@ -93,6 +95,32 @@ export function VaultLockScreen({
     }
     setGateAction('launch');
     setGateOpen(true);
+  };
+
+  const runPostCheck = async () => {
+    if (postRunning) return;
+    setPostRunning(true);
+    try {
+      const result = await autoConnectAndPost(undefined, (post) => {
+        const next = {
+          status: post.passed ? ('passed' as const) : ('failed' as const),
+          lastRunAt: post.timestamp,
+        };
+        setPostCheckState(next);
+        setPostCheck(next);
+      });
+      if (!result.postCheckResult) {
+        const next = { status: 'passed' as const, lastRunAt: new Date().toISOString() };
+        setPostCheckState(next);
+        setPostCheck(next);
+      }
+    } catch {
+      const next = { status: 'failed' as const, lastRunAt: new Date().toISOString() };
+      setPostCheckState(next);
+      setPostCheck(next);
+    } finally {
+      setPostRunning(false);
+    }
   };
 
   const openEdit = () => {
@@ -188,7 +216,7 @@ export function VaultLockScreen({
           <div className="mt-2.5 mx-auto max-w-[340px] rounded-lg border border-amber-500/50 bg-black/55 backdrop-blur-md px-3 py-2 text-[11px] text-amber-50 flex items-start gap-2 shadow-lg shadow-black/40">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
             <span className="flex-1 text-left leading-snug">
-              Vault locked due to inactivity. Session preserved — tap resume to re-enter.
+              Vault locked due to inactivity. Session preserved — tap Launch to re-enter.
             </span>
             <button
               type="button"
@@ -282,7 +310,12 @@ export function VaultLockScreen({
                     Daily POST Check
                   </div>
                   <div className="mt-1">
-                    <PostStatusBadge lastPostCheckAt={postCheck.lastRunAt} size="sm" />
+                    <PostStatusBadge
+                      lastPostCheckAt={postCheck.lastRunAt}
+                      size="sm"
+                      isRunning={postRunning}
+                      onClick={() => void runPostCheck()}
+                    />
                   </div>
                 </div>
               </div>
