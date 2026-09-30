@@ -538,6 +538,16 @@ export function MobileHUD({
     setFleet({ incidentDetected: true });
   };
 
+  useEffect(() => {
+    const onDemo = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: 'pothole' | 'collision' }>).detail?.kind || 'collision';
+      triggerDemoImpact(kind);
+    };
+    window.addEventListener('fleetvu:demo-impact', onDemo);
+    return () => window.removeEventListener('fleetvu:demo-impact', onDemo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fleet.vehicleSpeed, fleet.leftRange, fleet.rightRange, gpsLat, gpsLng]);
+
   const handleImOk = () => {
     setImpactAlert(null);
     setFleet({ incidentDetected: false });
@@ -1021,6 +1031,15 @@ export function MobileHUD({
                 }}
               />
               <VaultLink label="Report Incident" onClick={() => { setVaultMenuOpen(false); setShowIncidentWizard(true); }} />
+              {trialMode && (
+                <VaultLink
+                  label="Demo: Impact Alert"
+                  onClick={() => {
+                    setVaultMenuOpen(false);
+                    triggerDemoImpact('collision');
+                  }}
+                />
+              )}
               <VaultLink label="Vault Event Log" onClick={() => { setVaultMenuOpen(false); setShowEventLog(true); }} />
               <VaultLink label="Live GPS" onClick={() => { setVaultMenuOpen(false); setShowGpsPanel(true); }} />
               <VaultLink label="Re-Run Daily POST" onClick={() => { setVaultMenuOpen(false); runPostCheck(); }} />
