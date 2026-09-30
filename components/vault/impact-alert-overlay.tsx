@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { AlertOctagon, Car, CheckCircle2, Clock, Gauge, MapPin, Truck } from 'lucide-react';
+import { AlertOctagon, Building2, Car, CheckCircle2, Clock, Gauge, MapPin, Truck, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface ImpactAlertData {
@@ -13,8 +13,17 @@ export interface ImpactAlertData {
   timestamp: string;
 }
 
+export interface ImpactAlertDriverContext {
+  companyName?: string | null;
+  driverName?: string | null;
+  truckNumber?: string | null;
+  depot?: string | null;
+  companyLogoUrl?: string | null;
+}
+
 interface ImpactAlertOverlayProps {
   alert: ImpactAlertData;
+  driver?: ImpactAlertDriverContext;
   onReportIncident: () => void;
   onImOk: () => void;
   onDismiss?: () => void;
@@ -23,9 +32,12 @@ interface ImpactAlertOverlayProps {
 /**
  * Shock / collision page — full-screen on G-force event.
  * Driver cannot adjust sensors here — ranges are company-admin only.
+ *
+ * Verified impact threshold (phone jolt): 2.5g — see DEFAULT_THRESHOLDS.impactJoltThresholdG
  */
 export function ImpactAlertOverlay({
   alert,
+  driver,
   onReportIncident,
   onImOk,
 }: ImpactAlertOverlayProps) {
@@ -93,10 +105,45 @@ export function ImpactAlertOverlay({
   };
 
   const when = new Date(alert.timestamp);
+  const company = driver?.companyName || 'Fleet company';
+  const driverName = driver?.driverName || 'Driver';
+  const truck = driver?.truckNumber || '—';
 
   return (
     <div className="fixed inset-0 z-[80] bg-red-950/97 backdrop-blur-sm flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm h-[100dvh] max-h-[740px] flex flex-col justify-center py-2">
+        {/* Driver / company identity */}
+        <div className="mb-3 rounded-xl border border-red-400/25 bg-black/50 px-3 py-2.5">
+          <div className="flex items-center gap-2.5">
+            {driver?.companyLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={driver.companyLogoUrl}
+                alt={company}
+                className="h-8 w-auto max-w-[100px] object-contain shrink-0"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-500/20 text-red-200 shrink-0">
+                <Building2 className="w-4 h-4" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-red-300/90 truncate">
+                {company}
+              </p>
+              <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-red-200 shrink-0" />
+                {driverName}
+              </p>
+              <p className="text-[11px] text-red-100/80 font-mono truncate flex items-center gap-1.5">
+                <Truck className="w-3 h-3 shrink-0" />
+                Truck {truck}
+                {driver?.depot ? ` · ${driver.depot}` : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="text-center mb-3">
           <p className="text-[10px] font-bold tracking-[0.2em] text-red-300 uppercase mb-1">
             Collision / Shock Event
@@ -112,7 +159,11 @@ export function ImpactAlertOverlay({
               <div className="w-16 h-16 rounded-xl bg-orange-500/20 border border-orange-400/40 flex items-center justify-center">
                 <Truck className="w-9 h-9 text-orange-300" />
               </div>
-              <span className="text-[9px] text-orange-200/80 mt-1 font-semibold">YOUR TRUCK</span>
+              <span className="text-[9px] text-orange-200/80 mt-1 font-semibold text-center leading-tight">
+                YOUR TRUCK
+                <br />
+                <span className="text-orange-100/90 font-mono">{truck}</span>
+              </span>
             </div>
             <div className="flex flex-col items-center px-1">
               <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center animate-pulse shadow-[0_0_24px_rgba(239,68,68,0.6)]">
@@ -124,7 +175,11 @@ export function ImpactAlertOverlay({
               <div className="w-14 h-14 rounded-xl bg-slate-500/20 border border-slate-400/30 flex items-center justify-center">
                 <Car className="w-8 h-8 text-slate-200" />
               </div>
-              <span className="text-[9px] text-slate-300/80 mt-1 font-semibold">OTHER VEHICLE</span>
+              <span className="text-[9px] text-slate-300/80 mt-1 font-semibold text-center leading-tight">
+                OTHER VEHICLE
+                <br />
+                <span className="text-slate-400">To be identified</span>
+              </span>
             </div>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -1091,7 +1091,18 @@ export function MobileHUD({
       )}
 
       {impactAlert && (
-        <ImpactAlertOverlay alert={impactAlert} onReportIncident={handleReportFromAlert} onImOk={handleImOk} />
+        <ImpactAlertOverlay
+          alert={impactAlert}
+          driver={{
+            companyName: user?.companyName,
+            driverName: user?.name,
+            truckNumber: user?.truckNumber,
+            depot: user?.depot || user?.location,
+            companyLogoUrl: brandLogo,
+          }}
+          onReportIncident={handleReportFromAlert}
+          onImOk={handleImOk}
+        />
       )}
 
       {showIncidentWizard && (
