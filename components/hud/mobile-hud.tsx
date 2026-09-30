@@ -649,8 +649,14 @@ export function MobileHUD({
               <Lock className="w-2.5 h-2.5" />
               VAULT
             </button>
-            <button type="button" onClick={() => setSettingsOpen(true)} aria-label="Driver Settings">
-              <Settings className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Driver Settings"
+              title="Settings · volume & display"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-500/70 bg-slate-800/80 text-slate-100 hover:border-amber-400/50 hover:bg-amber-500/10 hover:text-amber-200 active:scale-95"
+            >
+              <Settings className="w-5 h-5" strokeWidth={2.25} />
             </button>
           </div>
         </div>
