@@ -12,6 +12,10 @@ export interface OnboardingTransactionResult {
   setupToken: string | null;
   hierarchyViolations: string[];
   emailDispatched: boolean;
+  /** True when company was saved to local CRM because Supabase blocked writes. */
+  localFallback?: boolean;
+  /** Roster Portal URL included in the welcome email (when created). */
+  rosterPortalUrl?: string | null;
   error?: string;
   rolledBack?: boolean;
 }

@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "dev:local": "next dev -p 3000",
-    "build": "node scripts/patch-radix-progress.cjs && next build",
-    "postinstall": "node scripts/patch-radix-progress.cjs",
+    "build": "node scripts/cpanel-build.cjs",
+    "build:plain": "node scripts/patch-radix-progress.cjs && next build",
+    "build:netlify": "node scripts/netlify-build.cjs",
     "icons": "node scripts/generate-pwa-icons.cjs",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
+    "start:next": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

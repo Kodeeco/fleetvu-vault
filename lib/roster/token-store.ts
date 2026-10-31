@@ -46,13 +46,64 @@ type LocalStore = {
 
 const DATA_DIR = path.join(process.cwd(), '.data');
 const STORE_FILE = path.join(DATA_DIR, 'roster-portal-local.json');
+/** Tokens removed from CRM queue even when Supabase UPDATE/DELETE fails (fetch failed). */
+const PURGED_FILE = path.join(DATA_DIR, 'roster-purged-tokens.json');
 
 function getSb(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+  const key = (
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    ''
+  ).trim();
   if (!url || !key) return null;
-  return createClient(url, key);
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+        const ctrl = new AbortController();
+        const ms = 4_000;
+        const timer = setTimeout(() => ctrl.abort(), ms);
+        const parent = init?.signal;
+        if (parent) {
+          if (parent.aborted) ctrl.abort();
+          else parent.addEventListener('abort', () => ctrl.abort(), { once: true });
+        }
+        return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+      },
+    },
+  });
+}
+
+type PurgedStore = { tokens: Record<string, string> }; // token -> ISO timestamp
+
+function readPurged(): PurgedStore {
+  try {
+    if (!fs.existsSync(PURGED_FILE)) return { tokens: {} };
+    const parsed = JSON.parse(fs.readFileSync(PURGED_FILE, 'utf8')) as PurgedStore;
+    return { tokens: parsed?.tokens && typeof parsed.tokens === 'object' ? parsed.tokens : {} };
+  } catch {
+    return { tokens: {} };
+  }
+}
+
+function writePurged(store: PurgedStore): void {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(PURGED_FILE, JSON.stringify(store, null, 2), 'utf8');
+}
+
+function markTokenPurged(token: string): void {
+  try {
+    const store = readPurged();
+    store.tokens[token] = new Date().toISOString();
+    writePurged(store);
+  } catch (err) {
+    console.warn('[roster] could not write purged tombstone', err);
+  }
+}
+
+function isTokenPurged(token: string): boolean {
+  return Boolean(readPurged().tokens[token]);
 }
 
 function isMissingTableError(message?: string | null): boolean {
@@ -65,6 +116,34 @@ function isMissingTableError(message?: string | null): boolean {
     m.includes('does not exist') ||
     m.includes('could not find the table')
   );
+}
+
+const HIDDEN_ROSTER_STATUSES = new Set(['deleted', 'purged', 'revoked']);
+
+/** Queue / CRM should not show soft-deleted or revoked tokens. */
+export function isRosterTokenVisible(status: string | null | undefined): boolean {
+  return !HIDDEN_ROSTER_STATUSES.has(String(status || '').toLowerCase());
+}
+
+function sbFetchErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const cause =
+    err instanceof Error && err.cause instanceof Error
+      ? err.cause.message
+      : err instanceof Error && err.cause
+        ? String(err.cause)
+        : '';
+  const combined = `${msg} ${cause}`.toLowerCase();
+  if (
+    combined.includes('fetch failed') ||
+    combined.includes('econnrefused') ||
+    combined.includes('enotfound') ||
+    combined.includes('network') ||
+    combined.includes('certificate')
+  ) {
+    return 'Cannot reach Supabase (network). Check NEXT_PUBLIC_SUPABASE_URL and connectivity.';
+  }
+  return msg || 'Supabase request failed';
 }
 
 function readLocal(): LocalStore {
@@ -139,16 +218,19 @@ export async function getRosterToken(
       .eq('token', token)
       .maybeSingle();
     if (!error && data) {
-      return { portal: data as RosterPortalTokenRow, storage: 'supabase' };
+      const portal = data as RosterPortalTokenRow;
+      if (isTokenPurged(token) || !isRosterTokenVisible(portal.status)) return null;
+      return { portal, storage: 'supabase' };
     }
     if (error && !isMissingTableError(error.message)) {
       return null;
     }
   }
 
+  if (isTokenPurged(token)) return null;
   const store = readLocal();
   const portal = store.tokens[token];
-  if (!portal) return null;
+  if (!portal || !isRosterTokenVisible(portal.status)) return null;
   return { portal, storage: 'local' };
 }
 
@@ -192,6 +274,8 @@ export async function replaceRosterEntries(
             sensor_serial: e.sensor_serial || null,
             truck_number: e.truck_number || null,
             status: e.status || 'draft',
+            one_time_keycode: e.one_time_keycode || null,
+            keycode_sent_at: e.keycode_sent_at || null,
           })),
         );
         if (error) return { ok: false, error: error.message };
@@ -238,4 +322,289 @@ export async function updateRosterTokenStatus(
   };
   writeLocal(store);
   return { ok: true, storage: 'local' };
+}
+
+/**
+ * Remove one roster portal token from the CRM queue.
+ * Tombstone + local purge first (always succeeds, no network).
+ * Supabase soft-delete is best-effort and must never block / fail CRM Delete.
+ */
+export async function deleteRosterToken(
+  token: string,
+): Promise<
+  | { ok: true; storage: 'supabase' | 'local' | 'both' | 'tombstone'; mode: 'hard' | 'soft' | 'tombstone' }
+  | { ok: false; error: string }
+> {
+  const t = token?.trim();
+  if (!t) return { ok: false, error: 'token required' };
+
+  // 1) Local first — CRM queue hides this token even if Supabase is down
+  markTokenPurged(t);
+  let removedLocal = false;
+  const store = readLocal();
+  if (store.tokens[t]) {
+    delete store.tokens[t];
+    delete store.entries[t];
+    writeLocal(store);
+    removedLocal = true;
+  }
+
+  let removedRemote = false;
+  let mode: 'hard' | 'soft' | 'tombstone' = 'tombstone';
+  const sb = getSb();
+
+  // 2) Best-effort remote (short; never throws out)
+  if (sb) {
+    try {
+      const { data: softRows, error: softErr } = await sb
+        .from('roster_portal_tokens')
+        .update({
+          status: 'deleted',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('token', t)
+        .select('token');
+
+      if (!softErr && (softRows?.length ?? 0) > 0) {
+        removedRemote = true;
+        mode = 'soft';
+        try {
+          await sb.from('roster_portal_entries').delete().eq('token', t);
+          const hard = await sb
+            .from('roster_portal_tokens')
+            .delete()
+            .eq('token', t)
+            .select('token');
+          if (!hard.error && (hard.data?.length ?? 0) > 0) mode = 'hard';
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch (err) {
+      console.warn('[roster] deleteRosterToken supabase best-effort failed', err);
+    }
+  }
+
+  return {
+    ok: true,
+    storage: removedRemote && removedLocal ? 'both' : removedRemote ? 'supabase' : removedLocal ? 'local' : 'tombstone',
+    mode: removedRemote ? mode : 'tombstone',
+  };
+}
+
+/**
+ * Trim stale queue rows:
+ * - awaiting submit (active/pending/expired, never submitted)
+ * - approved (keycodes already sent) when `includeApproved`
+ * Optional `olderThanDays` limits by created/submitted age.
+ */
+export async function trimRosterTokens(opts?: {
+  includeAwaiting?: boolean;
+  includeApproved?: boolean;
+  olderThanDays?: number;
+}): Promise<{ ok: true; removed: number; tokens: string[] } | { ok: false; error: string }> {
+  const includeAwaiting = opts?.includeAwaiting !== false;
+  const includeApproved = Boolean(opts?.includeApproved);
+  const olderThanDays = opts?.olderThanDays;
+  const all = await listAllRosterTokens();
+  const cutoff =
+    typeof olderThanDays === 'number' && olderThanDays > 0
+      ? Date.now() - olderThanDays * 24 * 60 * 60 * 1000
+      : null;
+
+  const toRemove: string[] = [];
+  for (const row of all) {
+    const st = (row.status || '').toLowerCase();
+    const awaiting =
+      st !== 'submitted' && st !== 'approved' && !row.submitted_at;
+    const approved = st === 'approved';
+    if (awaiting && !includeAwaiting) continue;
+    if (approved && !includeApproved) continue;
+    if (!awaiting && !approved) continue;
+    if (cutoff != null) {
+      const stamp = row.submitted_at || row.updated_at || row.created_at;
+      const t = stamp ? new Date(stamp).getTime() : NaN;
+      if (!Number.isNaN(t) && t > cutoff) continue;
+    }
+    toRemove.push(row.token);
+  }
+
+  const removed: string[] = [];
+  for (const token of toRemove) {
+    const res = await deleteRosterToken(token);
+    if (res.ok) removed.push(token);
+  }
+  return { ok: true, removed: removed.length, tokens: removed };
+}
+
+/** After CRM renames a company, keep roster portal tokens' company_name in sync. */
+export async function propagateRosterCompanyName(
+  companyId: string,
+  companyName: string,
+): Promise<number> {
+  if (!companyId || !companyName.trim()) return 0;
+  const name = companyName.trim();
+  let changed = 0;
+
+  const sb = getSb();
+  if (sb) {
+    const { data, error } = await sb
+      .from('roster_portal_tokens')
+      .update({ company_name: name, updated_at: new Date().toISOString() })
+      .eq('company_id', companyId)
+      .select('token');
+    if (!error && data) changed += data.length;
+  }
+
+  const store = readLocal();
+  let localDirty = false;
+  for (const token of Object.keys(store.tokens)) {
+    const row = store.tokens[token];
+    if (row.company_id === companyId && row.company_name !== name) {
+      store.tokens[token] = {
+        ...row,
+        company_name: name,
+        updated_at: new Date().toISOString(),
+      };
+      localDirty = true;
+      changed += 1;
+    }
+  }
+  if (localDirty) writeLocal(store);
+  return changed;
+}
+
+/** CRM review queue — merge Supabase + local `.data` fallback tokens. */
+export async function listAllRosterTokens(): Promise<
+  Array<RosterPortalTokenRow & { storage: 'supabase' | 'local' }>
+> {
+  const merged = new Map<string, RosterPortalTokenRow & { storage: 'supabase' | 'local' }>();
+
+  const sb = getSb();
+  if (sb) {
+    try {
+      const { data, error } = await sb
+        .from('roster_portal_tokens')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (!error && data) {
+        for (const row of data as RosterPortalTokenRow[]) {
+          merged.set(row.token, { ...row, storage: 'supabase' });
+        }
+      } else if (error && !isMissingTableError(error.message)) {
+        console.warn('[roster] listAllRosterTokens', error.message);
+      }
+    } catch (err) {
+      console.warn('[roster] listAllRosterTokens fetch failed', err);
+    }
+  }
+
+  const store = readLocal();
+  for (const row of Object.values(store.tokens)) {
+    if (!merged.has(row.token)) {
+      merged.set(row.token, { ...row, storage: 'local' });
+    }
+  }
+
+  return Array.from(merged.values())
+    .filter((row) => isRosterTokenVisible(row.status) && !isTokenPurged(row.token))
+    .sort((a, b) => {
+      const at = a.submitted_at || a.updated_at || a.created_at || '';
+      const bt = b.submitted_at || b.updated_at || b.created_at || '';
+      return bt.localeCompare(at);
+    });
+}
+
+/** Clear one-time keycode from roster after Vault bind (burn) — blocks reuse. */
+export async function clearRosterKeycode(keycode: string): Promise<number> {
+  const normalized = keycode.trim().toUpperCase();
+  if (!normalized) return 0;
+  let cleared = 0;
+
+  const sb = getSb();
+  if (sb) {
+    const { data, error } = await sb
+      .from('roster_portal_entries')
+      .update({ one_time_keycode: null })
+      .eq('one_time_keycode', normalized)
+      .select('id');
+    if (!error && Array.isArray(data)) cleared += data.length;
+  }
+
+  const store = readLocal();
+  let localDirty = false;
+  for (const token of Object.keys(store.entries)) {
+    const rows = store.entries[token] || [];
+    let changed = false;
+    store.entries[token] = rows.map((e) => {
+      if ((e.one_time_keycode || '').toUpperCase() !== normalized) return e;
+      changed = true;
+      cleared += 1;
+      return { ...e, one_time_keycode: null };
+    });
+    if (changed) localDirty = true;
+  }
+  if (localDirty) writeLocal(store);
+  return cleared;
+}
+
+/** Look up a dispatched keycode from roster entries (local or Supabase). */
+export async function findRosterKeycode(keycode: string): Promise<{
+  keycode: string;
+  driver_name: string;
+  email: string;
+  company_id: string | null;
+  company_name: string;
+  truck_number: string | null;
+  token: string;
+  entry_id?: string;
+  storage: 'supabase' | 'local';
+} | null> {
+  const normalized = keycode.trim().toUpperCase();
+  if (!normalized) return null;
+
+  const sb = getSb();
+  if (sb) {
+    const { data, error } = await sb
+      .from('roster_portal_entries')
+      .select('id, token, full_name, email, company_id, truck_number, one_time_keycode, status')
+      .eq('one_time_keycode', normalized)
+      .limit(1)
+      .maybeSingle();
+    if (!error && data?.one_time_keycode) {
+      const tok = await getRosterToken(data.token);
+      return {
+        keycode: normalized,
+        driver_name: data.full_name,
+        email: data.email,
+        company_id: data.company_id ?? tok?.portal.company_id ?? null,
+        company_name: tok?.portal.company_name || 'FleetVu Partner',
+        truck_number: data.truck_number ?? null,
+        token: data.token,
+        entry_id: data.id,
+        storage: 'supabase',
+      };
+    }
+  }
+
+  const store = readLocal();
+  for (const [token, entries] of Object.entries(store.entries)) {
+    const hit = entries.find((e) => (e.one_time_keycode || '').toUpperCase() === normalized);
+    if (hit) {
+      const portal = store.tokens[token];
+      return {
+        keycode: normalized,
+        driver_name: hit.full_name,
+        email: hit.email,
+        company_id: hit.company_id ?? portal?.company_id ?? null,
+        company_name: portal?.company_name || 'FleetVu Partner',
+        truck_number: hit.truck_number ?? null,
+        token,
+        entry_id: hit.id,
+        storage: 'local',
+      };
+    }
+  }
+  return null;
 }
