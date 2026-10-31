@@ -16,8 +16,11 @@ import {
   listIncidentShares,
   revokeIncidentShare,
 } from '@/lib/fleet-account/share-store';
-import { listLocalCompanies } from '@/lib/crm/companies-store';
+import { listLocalCompanies, patchLocalCompany, upsertLocalCompany } from '@/lib/crm/companies-store';
+import { uploadCompanyLogo } from '@/lib/company-logo-upload';
 import type { FleetAccountCadence, ReportKind, ReportRecipient } from '@/lib/fleet-account/types';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import path from 'path';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -282,10 +285,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'create_share') {
-    const incidentId = String(body.incidentId || '').trim();
+    const incidentId = String(body.incidentId || '').trim() || `pending-${Date.now()}`;
+    const incidentLabel = String(body.incidentLabel || '').trim();
     const recipients = Array.isArray(body.recipients) ? body.recipients.map(String) : [];
-    if (!incidentId) {
-      return NextResponse.json({ error: 'incidentId required' }, { status: 400, headers: corsHeaders });
+    if (!incidentLabel) {
+      return NextResponse.json(
+        { error: 'A short incident label is required' },
+        { status: 400, headers: corsHeaders },
+      );
     }
     if (!recipients.length) {
       return NextResponse.json({ error: 'At least one recipient email required' }, { status: 400, headers: corsHeaders });
@@ -294,7 +301,7 @@ export async function POST(req: NextRequest) {
     const share = await createIncidentShare({
       companyId: ctx.companyId,
       incidentId,
-      incidentLabel: body.incidentLabel ? String(body.incidentLabel) : undefined,
+      incidentLabel,
       createdBy,
       recipients,
       expiresInDays: typeof body.expiresInDays === 'number' ? body.expiresInDays : 14,
@@ -327,6 +334,81 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ ok }, { headers: corsHeaders });
+  }
+
+  if (action === 'upload_logo') {
+    const base64 = String(body.logo?.base64 || body.base64 || '');
+    const mimeType = String(body.logo?.mimeType || body.mimeType || 'image/png');
+    if (!base64) {
+      return NextResponse.json({ error: 'logo.base64 required' }, { status: 400, headers: corsHeaders });
+    }
+
+    let logoUrl = await uploadCompanyLogo(ctx.companyId, { base64, mimeType });
+
+    /** Local / Netlify fallback when Supabase storage is unavailable */
+    if (!logoUrl) {
+      try {
+        const i = base64.indexOf('base64,');
+        const raw = i >= 0 ? base64.slice(i + 7) : base64;
+        const bytes = Buffer.from(raw, 'base64');
+        if (bytes.length < 32 || bytes.length > 2_097_152) {
+          return NextResponse.json(
+            { error: 'Logo must be between 32 bytes and 2MB' },
+            { status: 400, headers: corsHeaders },
+          );
+        }
+        const ext = mimeType.includes('png')
+          ? 'png'
+          : mimeType.includes('webp')
+            ? 'webp'
+            : mimeType.includes('svg')
+              ? 'svg'
+              : 'jpg';
+        const dir = path.join(process.cwd(), 'public', 'branding', 'companies');
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        const safeId = ctx.companyId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+        const fileName = `${safeId}-logo-white.${ext}`;
+        writeFileSync(path.join(dir, fileName), bytes);
+        logoUrl = `/branding/companies/${fileName}?v=${Date.now()}`;
+      } catch (e) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : 'Logo upload failed' },
+          { status: 400, headers: corsHeaders },
+        );
+      }
+    }
+
+    const companies = listLocalCompanies();
+    const existing =
+      companies.find((c) => c.id === ctx.companyId) ||
+      companies.find((c) => c.name === ctx.companyName);
+    if (existing) {
+      patchLocalCompany(existing.id, { logo_url: logoUrl });
+    } else {
+      const now = new Date().toISOString();
+      upsertLocalCompany({
+        id: ctx.companyId,
+        name: ctx.companyName,
+        region: '',
+        location: '',
+        plan_tier: 'basic',
+        fleet_locations: [],
+        created_at: now,
+        account_status: 'active',
+        logo_url: logoUrl,
+      });
+    }
+
+    await appendFleetAudit({
+      companyId: ctx.companyId,
+      token,
+      action: 'settings_update',
+      actorEmail: String(body.updatedBy || ctx.contactEmail || ''),
+      ...meta,
+      detail: 'Company portal logo updated',
+    });
+
+    return NextResponse.json({ ok: true, logoUrl }, { headers: corsHeaders });
   }
 
   if (action === 'audit_event') {

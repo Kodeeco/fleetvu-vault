@@ -66,3 +66,35 @@ export async function revokeIncidentShare(
   writeStore(store);
   return true;
 }
+
+export type IncidentSharePublicStatus = 'active' | 'expired' | 'revoked' | 'missing';
+
+export function getIncidentShareByToken(token: string): IncidentShareLink | null {
+  const t = (token || '').trim();
+  if (!t) return null;
+  return readStore().shares.find((s) => s.token === t) || null;
+}
+
+export function classifyIncidentShare(share: IncidentShareLink | null): IncidentSharePublicStatus {
+  if (!share) return 'missing';
+  if (share.revokedAt) return 'revoked';
+  if (new Date(share.expiresAt).getTime() < Date.now()) return 'expired';
+  return 'active';
+}
+
+/** Increment access count for active shares only. Returns updated share or null. */
+export async function recordShareAccess(token: string): Promise<{
+  share: IncidentShareLink | null;
+  status: IncidentSharePublicStatus;
+}> {
+  const store = readStore();
+  const idx = store.shares.findIndex((s) => s.token === token);
+  if (idx < 0) return { share: null, status: 'missing' };
+  const share = store.shares[idx];
+  const status = classifyIncidentShare(share);
+  if (status !== 'active') return { share, status };
+  const updated = { ...share, accessCount: (share.accessCount || 0) + 1 };
+  store.shares[idx] = updated;
+  writeStore(store);
+  return { share: updated, status: 'active' };
+}

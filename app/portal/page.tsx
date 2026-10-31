@@ -16,14 +16,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import * as XLSX from 'xlsx';
+import { useRouter } from 'next/navigation';
 import {
   AccountAuthPanel,
   AuditPanel,
+  FirstRunChecklist,
   FleetAccountNav,
   IncidentsPanel,
   ReportsPanel,
   SettingsPanel,
   type FleetPortalTab,
+  clearFleetSession,
   getFleetSession,
 } from '@/components/fleet-account/fleet-account-panels';
 import type { FleetAccountSettings } from '@/lib/fleet-account/types';
@@ -110,6 +113,7 @@ function rowsFromSheetMatrix(matrix: string[][]): RosterEntry[] {
 }
 
 function RosterPortalInner() {
+  const router = useRouter();
   const params = useSearchParams();
   const token = params.get('token') || '';
   const fileRef = useRef<HTMLInputElement>(null);
@@ -124,6 +128,7 @@ function RosterPortalInner() {
   const [tab, setTab] = useState<FleetPortalTab>('roster');
   const [accountSettings, setAccountSettings] = useState<FleetAccountSettings | null>(null);
   const [passwordSet, setPasswordSet] = useState(false);
+  const autoLoginTabRef = useRef(false);
 
   const loadFleetAccount = useCallback(async (rosterToken: string) => {
     try {
@@ -134,7 +139,8 @@ function RosterPortalInner() {
       );
       const data = await res.json();
       if (!res.ok) return;
-      setPasswordSet(!!data.passwordSet);
+      const pwSet = !!data.passwordSet;
+      setPasswordSet(pwSet);
       setAccountSettings(data.settings || null);
       setPortal((p) =>
         p
@@ -146,6 +152,10 @@ function RosterPortalInner() {
             }
           : p,
       );
+      if (!autoLoginTabRef.current && !pwSet) {
+        autoLoginTabRef.current = true;
+        setTab('account');
+      }
     } catch {
       /* non-fatal */
     }
@@ -437,7 +447,13 @@ function RosterPortalInner() {
           onChange={setTab}
           companyName={portal.companyName}
           logoUrl={portal.logoUrl}
+          onSignOut={() => {
+            clearFleetSession();
+            router.push('/vault-login');
+          }}
         />
+
+        <FirstRunChecklist passwordSet={passwordSet} onGo={setTab} />
 
         {tab === 'account' && (
           <AccountAuthPanel
@@ -456,7 +472,11 @@ function RosterPortalInner() {
             token={portal.token}
             initial={accountSettings}
             actorEmail={portal.contactEmail || portal.contactName || 'portal'}
+            logoUrl={portal.logoUrl}
             onSaved={setAccountSettings}
+            onLogoUploaded={(url) =>
+              setPortal((p) => (p ? { ...p, logoUrl: url } : p))
+            }
           />
         )}
         {tab === 'settings' && !accountSettings && (
@@ -465,7 +485,12 @@ function RosterPortalInner() {
 
         {tab === 'audit' && <AuditPanel token={portal.token} />}
 
-        {tab === 'reports' && <ReportsPanel companyName={portal.companyName} />}
+        {tab === 'reports' && (
+          <ReportsPanel
+            companyName={portal.companyName}
+            onGoSettings={() => setTab('settings')}
+          />
+        )}
 
         {tab === 'incidents' && (
           <IncidentsPanel
