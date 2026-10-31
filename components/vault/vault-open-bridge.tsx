@@ -6,7 +6,7 @@ import { setScfuelsPilotSticky } from '@/lib/scfuels-trial';
 
 /**
  * Client bridge after server validates the secret.
- * Must land on #vault-live (Default View) — bare / is the PC portal chooser.
+ * Lands on #vault-live (Default View Vault), unlocked for CISBO / staff review.
  */
 export function VaultOpenBridge() {
   useEffect(() => {
