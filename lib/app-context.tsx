@@ -224,7 +224,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.replace(/^#/, '').toLowerCase();
       // Portal jump hashes own the session — do not restore a stale localStorage user.
-      // Bare / and #home land on the PC multi-portal chooser (not a restored ops session).
+      // #home lands on the PC multi-portal chooser (not a restored ops session).
+      // Bare / is Default View Vault (see app-content applyHashRoute).
       const portalOwnsSession =
         !hash ||
         [

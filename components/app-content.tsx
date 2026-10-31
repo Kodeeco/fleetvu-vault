@@ -293,15 +293,16 @@ function AppInner() {
           ? new URLSearchParams(window.location.search).get('pilot')?.toLowerCase() || ''
           : '';
 
-      // Bare / → PC multi-portal landing. Driver Vault demos:
-      //   #vault-live / #demo-vault → Default View (FleetVu / CRM)
+      // Bare / → CRM Default View Vault (not SCFuels, not portal chooser).
+      //   #home / #portals → PC multi-portal landing
+      //   #vault-live / #demo-vault → Default View
       //   #demo-scfuels / ?pilot=scfuels → SCFuels C55-Pro evaluation
       if (!hash) {
         if (pilot === 'scfuels' || pilot === 'sc-fuels' || pilot === 'scf') {
           enterScfuelsVault();
           return;
         }
-        goPcLanding();
+        void enterDemoVault({ hash: 'vault-live' });
         return;
       }
 
