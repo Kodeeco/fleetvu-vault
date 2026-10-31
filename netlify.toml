@@ -2,8 +2,9 @@
   # Use plain Next build on Netlify — cpanel-build rewrites paths for Digi9/Linux
   # and breaks @netlify/plugin-nextjs on Windows (ENOENT C:\home\global\...).
   command = "npm run build:netlify"
-  # Leave publish unset — @netlify/plugin-nextjs owns the publish dir.
-  # Do not set publish = "." (plugin rejects) or ".next" (breaks handler).
+  # Must be .next (BUILD_ID lives here). Unset/empty resolves to site root and
+  # @netlify/plugin-nextjs fails: publish cannot equal base directory.
+  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
