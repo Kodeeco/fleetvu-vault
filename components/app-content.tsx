@@ -11,6 +11,7 @@ import { VaultLandingPage, type GatewayChoice } from '@/components/landing/vault
 import { DriverVaultOnboarding } from '@/components/landing/driver-vault-onboarding';
 import { FleetVuErrorBoundary } from '@/components/error-boundary';
 import { VaultLockScreen } from '@/components/vault/vault-lock-screen';
+import { isPublicVaultOpen } from '@/lib/public-vault-gate';
 import { VaultFeatureHub, type VaultFeature } from '@/components/vault/vault-feature-hub';
 import { getVaultPhase, setVaultPhase } from '@/lib/vault-session';
 import {
@@ -24,8 +25,8 @@ import { TRIAL_CHANNEL_CONFIG } from '@/lib/edge-filter';
 
 type AppState = 'landing' | 'driver_onboarding' | 'enterprise_login' | 'accuvu_login' | 'global_login';
 
-/** SCFuels C55-Pro evaluation — default #demo-vault identity */
-const DEMO_DRIVER: AuthUser = { ...SCFUELS_TRIAL_DRIVER };
+/** SCFuels C55-Pro evaluation — only via #demo-scfuels / ?pilot=scfuels */
+const DEMO_SCFUELS_DRIVER: AuthUser = { ...SCFUELS_TRIAL_DRIVER };
 
 const DEMO_ENTERPRISE: AuthUser = {
   ...DEMO_CUSTOMER_SUPER_ADMIN,
@@ -92,7 +93,67 @@ function AppInner() {
     setHash('home');
   }, [logout, setView, updatePhase]);
 
+  /** FleetVu Default View vault (CRM-editable) — #demo-vault / #vault-live */
   const enterDemoVault = useCallback(
+    async (
+      opts?: { asAdminPreview?: boolean; returnUser?: AuthUser | null; hash?: string },
+    ) => {
+      clearUxDemoEnterprise();
+      if (opts?.asAdminPreview && opts.returnUser) {
+        setAdminReturnUser(opts.returnUser);
+        setAdminPreview(true);
+      } else {
+        setAdminPreview(false);
+        setAdminReturnUser(null);
+      }
+      clearHash();
+      setHash(opts?.hash || 'vault-live');
+
+      let authUser: AuthUser | null = null;
+      try {
+        const res = await fetch('/api/crm/default-view');
+        const data = await res.json();
+        if (res.ok && data.authUser) authUser = data.authUser as AuthUser;
+      } catch {
+        /* fall through to seed */
+      }
+      if (!authUser) {
+        authUser = {
+          role: 'driver',
+          email: 'default.view@fleetvu.local',
+          name: 'FleetVu Pilot Driver',
+          companyName: 'The Vault',
+          companyId: 'default-view-account',
+          companyLogoUrl: '/FV-Vault-logo-gold.png',
+          companyLogoSize: 'large',
+          driverId: 'F-DRV-01',
+          truckNumber: '#ABF-101',
+          sensorHardware: 'C55-Pro',
+          depot: 'FleetVu HQ',
+          location: 'FleetVu HQ',
+          planTier: 'proplus',
+          biometricVerified: false,
+          productSku: 'fleetvu',
+        };
+      }
+
+      // /vault-open/<secret> sets the public gate — unlock Tap-to-Launch for CISBO / staff review.
+      const unlocked = isPublicVaultOpen() || Boolean(authUser.biometricVerified);
+      login({ ...authUser, biometricVerified: unlocked });
+      setFleet({
+        forwardRange: TRIAL_CHANNEL_CONFIG.channel_forward_range_m,
+        leftRange: TRIAL_CHANNEL_CONFIG.channel_left_range_m,
+        rightRange: TRIAL_CHANNEL_CONFIG.channel_right_range_m,
+        selectedCompanyId: authUser.companyId || 'default-view-account',
+      });
+      setView('mobile');
+      updatePhase('locked');
+    },
+    [login, setFleet, setView, updatePhase],
+  );
+
+  /** Explicit SCFuels C55-Pro evaluation walkthrough */
+  const enterScfuelsVault = useCallback(
     (opts?: { asAdminPreview?: boolean; returnUser?: AuthUser | null }) => {
       clearUxDemoEnterprise();
       if (opts?.asAdminPreview && opts.returnUser) {
@@ -103,8 +164,8 @@ function AppInner() {
         setAdminReturnUser(null);
       }
       clearHash();
-      setHash('demo-vault');
-      login({ ...DEMO_DRIVER });
+      setHash('demo-scfuels');
+      login({ ...DEMO_SCFUELS_DRIVER });
       setFleet({
         forwardRange: TRIAL_CHANNEL_CONFIG.channel_forward_range_m,
         leftRange: TRIAL_CHANNEL_CONFIG.channel_left_range_m,
@@ -203,7 +264,11 @@ function AppInner() {
         updatePhase('locked');
         return;
       }
-      enterDemoVault({ asAdminPreview: Boolean(returnUser), returnUser });
+      void enterDemoVault({
+        asAdminPreview: Boolean(returnUser),
+        returnUser,
+        hash: 'demo-vault',
+      });
     };
     window.addEventListener('fleetvu:open-driver-vault', handler);
     return () => window.removeEventListener('fleetvu:open-driver-vault', handler);
@@ -228,14 +293,16 @@ function AppInner() {
           ? new URLSearchParams(window.location.search).get('pilot')?.toLowerCase() || ''
           : '';
 
-      // Bare / → PC multi-portal landing (VaultLandingPage). SCFuels vault only via
-      // #demo-vault / #demo-driver or ?pilot=scfuels.
+      // Bare / → CRM Default View Vault (not SCFuels, not portal chooser).
+      //   #home / #portals → PC multi-portal landing
+      //   #vault-live / #demo-vault → Default View
+      //   #demo-scfuels / ?pilot=scfuels → SCFuels C55-Pro evaluation
       if (!hash) {
         if (pilot === 'scfuels' || pilot === 'sc-fuels' || pilot === 'scf') {
-          enterDemoVault();
+          enterScfuelsVault();
           return;
         }
-        goPcLanding();
+        void enterDemoVault({ hash: 'vault-live' });
         return;
       }
 
@@ -243,8 +310,17 @@ function AppInner() {
         goPcLanding();
         return;
       }
-      if (hash === 'demo-vault' || hash === 'demo-driver') {
-        enterDemoVault();
+      if (
+        hash === 'demo-vault' ||
+        hash === 'demo-driver' ||
+        hash === 'vault-live' ||
+        hash === 'vaultlive'
+      ) {
+        void enterDemoVault({ hash: hash.startsWith('vault') ? 'vault-live' : 'demo-vault' });
+        return;
+      }
+      if (hash === 'demo-scfuels' || hash === 'scfuels-vault' || hash === 'scfuels') {
+        enterScfuelsVault();
         return;
       }
       if (hash === 'demo-enterprise' || hash === 'demo-company') {
@@ -292,6 +368,7 @@ function AppInner() {
       enterDemoEnterprise,
       enterDemoGlobal,
       enterDemoVault,
+      enterScfuelsVault,
       goPcLanding,
       logout,
       setView,
@@ -444,7 +521,7 @@ function AppInner() {
         <VaultLandingPage
           onSelect={(choice: GatewayChoice, opts) => {
             if (opts?.demo && choice === 'driver') {
-              enterDemoVault();
+              void enterDemoVault({ hash: 'demo-vault' });
               return;
             }
             if (opts?.demo && choice === 'enterprise') {

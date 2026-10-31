@@ -20,6 +20,8 @@ export interface AuthUser {
   companyId?: string;
   /** Customer wordmark for Vault / HUD (dark UI) */
   companyLogoUrl?: string;
+  /** Header logo size: small icon vs large wordmark */
+  companyLogoSize?: 'small' | 'large';
   pinCode?: string;
   trialStartDate?: string;
   trialDurationDays?: number;
@@ -222,7 +224,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.replace(/^#/, '').toLowerCase();
       // Portal jump hashes own the session — do not restore a stale localStorage user.
-      // Bare / and #home land on the PC multi-portal chooser (not a restored ops session).
+      // #home lands on the PC multi-portal chooser (not a restored ops session).
+      // Bare / is Default View Vault (see app-content applyHashRoute).
       const portalOwnsSession =
         !hash ||
         [
@@ -230,6 +233,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           'portals',
           'demo-vault',
           'demo-driver',
+          'vault-live',
+          'demo-scfuels',
+          'scfuels-vault',
           'demo-enterprise',
           'demo-company',
           'demo-accuvu',
