@@ -1,5 +1,14 @@
 import { isScfuelsTrialUser, SCFUELS_TRIAL } from '@/lib/scfuels-trial';
 
+/** Header logo display size for Vault lock / HUD chrome */
+export type CompanyLogoSize = 'small' | 'large';
+
+export const COMPANY_LOGO_PLACEHOLDER = '/FV-Vault-logo-gold.png';
+
+export function normalizeCompanyLogoSize(value: unknown): CompanyLogoSize {
+  return value === 'small' ? 'small' : 'large';
+}
+
 /** Session fields used to resolve a customer wordmark for dark Vault UI. */
 export type BrandableUser = {
   companyLogoUrl?: string | null;

@@ -20,6 +20,8 @@ export interface AuthUser {
   companyId?: string;
   /** Customer wordmark for Vault / HUD (dark UI) */
   companyLogoUrl?: string;
+  /** Header logo size: small icon vs large wordmark */
+  companyLogoSize?: 'small' | 'large';
   pinCode?: string;
   trialStartDate?: string;
   trialDurationDays?: number;
@@ -230,6 +232,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           'portals',
           'demo-vault',
           'demo-driver',
+          'vault-live',
+          'demo-scfuels',
+          'scfuels-vault',
           'demo-enterprise',
           'demo-company',
           'demo-accuvu',
