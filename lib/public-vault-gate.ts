@@ -1,8 +1,8 @@
 /**
- * Public Vault gate for bare app.fleetvu.org
+ * Public Vault gate for Default View (#vault-live / #demo-vault).
  *
- * Default: LOCKED marketing landing (red LOCKED).
- * Staff escape (secret required):
+ * Bare / → PC multi-portal chooser (not the Vault).
+ * Staff escape (secret required) opens Default View unlocked:
  *   https://app.fleetvu.org/vault-open/<YOUR_SECRET>
  * Clear:
  *   https://app.fleetvu.org/vault-locked

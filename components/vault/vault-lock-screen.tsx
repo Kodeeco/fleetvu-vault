@@ -29,6 +29,8 @@ import { isScfuelsTrialUser, SCFUELS_TRIAL } from '@/lib/scfuels-trial';
 import { resolveCompanyLogoUrl, companyBrandTagline } from '@/lib/company-branding';
 import { EDGE_FILTER_THRESHOLD_M } from '@/lib/edge-filter';
 import { autoConnectAndPost } from '@/lib/sensor-auto-connect';
+import { isPublicVaultOpen } from '@/lib/public-vault-gate';
+import { isDefaultViewAccountUser } from '@/lib/default-view-account';
 
 interface VaultLockScreenProps {
   user: AuthUser;
@@ -82,12 +84,15 @@ export function VaultLockScreen({
   const company = user.companyName || (trialBranded ? SCFUELS_TRIAL.companyName : 'FleetVu Partner');
 
   const requestLaunch = () => {
-    // Trial / demo vault sessions skip the 13-digit corporate gate so Tap to Launch
-    // goes straight into the C55 HUD (SCFuels evaluation + #demo-vault).
+    // Trial / demo / staff vault-open sessions skip the 13-digit corporate gate.
+    const hash =
+      typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '';
     const demoSession =
       trialBranded ||
       Boolean(user.biometricVerified) ||
-      (typeof window !== 'undefined' && window.location.hash.toLowerCase().includes('demo-vault'));
+      (isDefaultViewAccountUser(user) && isPublicVaultOpen()) ||
+      hash.includes('demo-vault') ||
+      hash.includes('vault-live');
 
     if (previewMode || demoSession || shouldBypassGate('vault_access')) {
       onLaunch();

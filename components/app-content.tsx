@@ -11,6 +11,7 @@ import { VaultLandingPage, type GatewayChoice } from '@/components/landing/vault
 import { DriverVaultOnboarding } from '@/components/landing/driver-vault-onboarding';
 import { FleetVuErrorBoundary } from '@/components/error-boundary';
 import { VaultLockScreen } from '@/components/vault/vault-lock-screen';
+import { isPublicVaultOpen } from '@/lib/public-vault-gate';
 import { VaultFeatureHub, type VaultFeature } from '@/components/vault/vault-feature-hub';
 import { getVaultPhase, setVaultPhase } from '@/lib/vault-session';
 import {
@@ -136,7 +137,9 @@ function AppInner() {
         };
       }
 
-      login({ ...authUser });
+      // /vault-open/<secret> sets the public gate — unlock Tap-to-Launch for CISBO / staff review.
+      const unlocked = isPublicVaultOpen() || Boolean(authUser.biometricVerified);
+      login({ ...authUser, biometricVerified: unlocked });
       setFleet({
         forwardRange: TRIAL_CHANNEL_CONFIG.channel_forward_range_m,
         leftRange: TRIAL_CHANNEL_CONFIG.channel_left_range_m,

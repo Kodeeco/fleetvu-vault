@@ -4,18 +4,24 @@ import { useEffect } from 'react';
 import { setPublicVaultOpen } from '@/lib/public-vault-gate';
 import { setScfuelsPilotSticky } from '@/lib/scfuels-trial';
 
-/** Client bridge after server validates the secret. */
+/**
+ * Client bridge after server validates the secret.
+ * Must land on #vault-live (Default View) — bare / is the PC portal chooser.
+ */
 export function VaultOpenBridge() {
   useEffect(() => {
     setPublicVaultOpen(true);
-    // Preserve pilot branding across redirect to bare /.
     const params = new URLSearchParams(window.location.search);
     const pilot = (params.get('pilot') || '').trim().toLowerCase();
     const scfuels =
       pilot === 'scfuels' || pilot === 'sc-fuels' || pilot === 'scf';
-    if (scfuels) setScfuelsPilotSticky(true);
-    else setScfuelsPilotSticky(false);
-    window.location.replace(scfuels ? '/?pilot=scfuels' : '/');
+    if (scfuels) {
+      setScfuelsPilotSticky(true);
+      window.location.replace('/?pilot=scfuels#demo-scfuels');
+      return;
+    }
+    setScfuelsPilotSticky(false);
+    window.location.replace('/#vault-live');
   }, []);
 
   return (
