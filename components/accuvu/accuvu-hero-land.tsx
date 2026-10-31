@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Syne, JetBrains_Mono } from 'next/font/google';
 import {
   Play,
   Pause,
@@ -16,8 +15,10 @@ import {
 import { ReconstructionCanvas } from '@/components/reconstruction/reconstruction-canvas';
 import { Button } from '@/components/ui/button';
 
-const syne = Syne({ subsets: ['latin'], weight: ['600', '700', '800'] });
-const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'] });
+// Avoid next/font/google on Netlify — Google font CSS fetch can throw
+// "Cannot read properties of null (reading '1')" during Linux builds.
+const syne = { className: 'fv-font-syne' };
+const mono = { className: 'fv-font-mono' };
 
 /** Signature demo window: T−3.0s → impact → T+2.0s */
 const T_MIN = -3;

@@ -1,8 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] });
+// Avoid next/font/google on Netlify Linux builds — Google CSS fetch is flaky
+// and can crash the font loader mid-compile.
+const inter = { className: 'fv-font-sans' };
 
 export const dynamic = 'force-dynamic';
 // FleetVu Mobile Command — root layout
@@ -46,6 +47,12 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#0F172A" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@600;700;800&display=swap"
+          rel="stylesheet"
+        />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />

@@ -228,3 +228,15 @@
 .leaflet-popup-pane {
   z-index: 11 !important;
 }
+
+.fv-font-sans {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+.fv-font-syne {
+  font-family: Syne, Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.fv-font-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
