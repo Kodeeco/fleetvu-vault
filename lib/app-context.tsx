@@ -222,7 +222,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.replace(/^#/, '').toLowerCase();
       // Portal jump hashes own the session — do not restore a stale localStorage user.
-      // Bare / (no hash) is the SCFuels C55-Pro Vault entry — same treatment.
+      // Bare / and #home land on the PC multi-portal chooser (not a restored ops session).
       const portalOwnsSession =
         !hash ||
         [

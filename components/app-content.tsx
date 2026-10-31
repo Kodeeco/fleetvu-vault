@@ -87,7 +87,7 @@ function AppInner() {
     logout();
     setView('desktop');
     setGateway('landing');
-    // Keep #home so empty-hash SCFuels default does not bounce straight back into demo vault
+    // Land on PC home so bare / does not re-enter SCFuels demo vault
     clearHash();
     setHash('home');
   }, [logout, setView, updatePhase]);
@@ -209,26 +209,38 @@ function AppInner() {
     return () => window.removeEventListener('fleetvu:open-driver-vault', handler);
   }, [enterDemoVault, login, setView, updatePhase, user]);
 
+  const goPcLanding = useCallback(() => {
+    setAdminPreview(false);
+    setAdminReturnUser(null);
+    updatePhase(null);
+    clearUxDemoEnterprise();
+    logout();
+    setView('desktop');
+    setGateway('landing');
+    setHash('home');
+  }, [logout, setView, updatePhase]);
+
   const applyHashRoute = useCallback(
     (rawHash: string) => {
       const hash = rawHash.replace(/^#/, '').toLowerCase();
+      const pilot =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('pilot')?.toLowerCase() || ''
+          : '';
 
-      // SCFuels C55-Pro pilot: bare / opens the Vault lock screen (not the 3-product chooser).
-      // Multi-portal landing stays available at #home / #portals for later.
+      // Bare / → PC multi-portal landing (VaultLandingPage). SCFuels vault only via
+      // #demo-vault / #demo-driver or ?pilot=scfuels.
       if (!hash) {
-        enterDemoVault();
+        if (pilot === 'scfuels' || pilot === 'sc-fuels' || pilot === 'scf') {
+          enterDemoVault();
+          return;
+        }
+        goPcLanding();
         return;
       }
 
       if (hash === 'home' || hash === 'portals') {
-        setAdminPreview(false);
-        setAdminReturnUser(null);
-        updatePhase(null);
-        clearUxDemoEnterprise();
-        logout();
-        setView('desktop');
-        setGateway('landing');
-        setHash('home');
+        goPcLanding();
         return;
       }
       if (hash === 'demo-vault' || hash === 'demo-driver') {
@@ -280,6 +292,7 @@ function AppInner() {
       enterDemoEnterprise,
       enterDemoGlobal,
       enterDemoVault,
+      goPcLanding,
       logout,
       setView,
       updatePhase,
