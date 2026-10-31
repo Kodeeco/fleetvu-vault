@@ -20,7 +20,7 @@ export const companyStepSchema = z.object({
     .min(2, 'Primary location is required')
     .max(120),
   region: z.enum(['West Coast', 'Midwest', 'East Coast', 'South', 'Unspecified']),
-  planTier: z.enum(['basic', 'pro', 'proplus']),
+  planTier: z.enum(['fleet', 'insurance', 'fleet_insurance']),
   industry: z.string().trim().max(80).optional().or(z.literal('')),
   fleetSizeEstimate: z
     .number({ invalid_type_error: 'Fleet size must be a number' })
@@ -28,6 +28,20 @@ export const companyStepSchema = z.object({
     .min(0)
     .max(100_000)
     .optional(),
+  /** Optional — blank OK until known */
+  usdot: z
+    .string()
+    .trim()
+    .max(32, 'USDOT is too long')
+    .optional()
+    .or(z.literal('')),
+  /** Optional — FMCSA last-reported annual miles; blank OK */
+  annualMilesFmcsa: z
+    .string()
+    .trim()
+    .max(80, 'Annual miles value is too long')
+    .optional()
+    .or(z.literal('')),
 });
 
 export const contactStepSchema = z.object({
@@ -64,6 +78,25 @@ export const fleetStepSchema = z.object({
   }),
   welcomeMessage: z.string().trim().max(2000).optional().or(z.literal('')),
   initialVehicleCount: z.number().int().min(0).max(10_000).optional(),
+  /** Where Safety / Scorecard / Forensic reports are emailed (one+ addresses) */
+  reportEmails: z
+    .array(
+      z
+        .string()
+        .trim()
+        .toLowerCase()
+        .regex(emailRegex, 'Enter a valid report email'),
+    )
+    .max(20)
+    .optional()
+    .default([]),
+  /** Auto-compile driver uploads into one Admin PDF digest */
+  digestEnabled: z.boolean().optional().default(true),
+  /** Weekly (Fri→Mon) default; Daily / Monthly / Quarterly also supported */
+  digestCadence: z
+    .enum(['daily', 'weekly', 'monthly', 'quarterly'])
+    .optional()
+    .default('weekly'),
 });
 
 export const unifiedOnboardingSchema = companyStepSchema

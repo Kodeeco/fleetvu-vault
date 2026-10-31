@@ -138,12 +138,13 @@ export function buildWelcomeRosterEmailHtml(input: WelcomeRosterEmailInput): str
                 <tr>
                   <td valign="top" width="28" style="color:#d4a017;font-size:15px;font-weight:700;line-height:1.55;padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;">1.</td>
                   <td valign="top" style="color:#ffffff;font-size:15px;line-height:1.55;padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;">
-                    Click the secure access link below to open your roster portal.
+                    Click the secure access link below to open your <strong style="color:#f5f5f5;">Fleet Account Portal</strong> (roster, report recipients, incident shares, and audit log).
                   </td>
                 </tr>
                 <tr>
                   <td valign="top" width="28" style="color:#d4a017;font-size:15px;font-weight:700;line-height:1.55;padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;">2.</td>
                   <td valign="top" style="color:#ffffff;font-size:15px;line-height:1.55;padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;">
+                    <strong style="color:#d4a017;">Your fleet backend</strong> — manage drivers, who receives Safety/Insurance reports, and secure incident forwards. Set a portal password after first open so you can return anytime.
                     Add up to <strong style="color:#d4a017;">${seats} drivers</strong> — one seat per unit on your plan.
                     ${
                       seats >= 10
@@ -156,7 +157,7 @@ export function buildWelcomeRosterEmailHtml(input: WelcomeRosterEmailInput): str
                 <tr>
                   <td valign="top" width="28" style="color:#d4a017;font-size:15px;font-weight:700;line-height:1.55;padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;">3.</td>
                   <td valign="top" style="color:#ffffff;font-size:15px;line-height:1.55;padding:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;">
-                    Submit for FleetVu review — drivers then receive one-time login keycodes to launch the Vault app.
+                    Submit (or re-submit after changes). New drivers receive one-time login keycodes after FleetVu approval — keep this email so you can return to the portal whenever your roster changes.
                   </td>
                 </tr>
               </table>
@@ -245,24 +246,41 @@ export function buildDriverKeycodeWelcomeHtml(input: {
   companyName: string;
   keycode: string;
   isDesktop?: boolean;
+  /** Open Vault driver onboarding, e.g. https://app.fleetvu.org/#driver */
+  vaultUrl?: string;
 }): string {
-  return `
-    <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;background:#0b132b;color:#e2e8f0;padding:28px;">
-      <div style="font-size:11px;color:#d4a017;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;">Welcome · welcome@fleetvu.org</div>
-      <h1 style="color:#fff;font-size:20px;margin:12px 0;">Hello ${escapeHtml(input.driverName)}</h1>
-      <p style="color:#94a3b8;font-size:14px;line-height:1.55;">
-        Your ${escapeHtml(input.companyName)} FleetVu Vault access is ready.
-        ${
-          input.isDesktop
-            ? 'Use this one-time TEMP keycode on desktop, then set your own password.'
-            : 'Use this one-time keycode once on your smartphone. Next login will prompt for fingerprint biometrics — then Bluetooth auto-connects each morning and runs Daily POST.'
-        }
-      </p>
-      <div style="background:#1e293b;border:1px solid #d4a017;border-radius:8px;padding:16px;margin:18px 0;text-align:center;">
-        <div style="font-size:11px;color:#d4a017;font-weight:700;margin-bottom:8px;">ONE-TIME LOGIN KEYCODE</div>
-        <code style="font-size:22px;font-family:monospace;color:#d4a017;font-weight:800;letter-spacing:0.08em;">${escapeHtml(input.keycode)}</code>
-      </div>
-      <p style="font-size:11px;color:#64748b;margin:0;">This code burns after first use. Do not share it.</p>
-    </div>
-  `;
+  const openUrl = (input.vaultUrl || `${FALLBACK_APP_URL}/#driver`).replace(/\/+$/, '');
+  // Lazy import keeps this module free of circular init with email chrome
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const chrome = require('@/lib/email/fleetvu-email-chrome') as typeof import('@/lib/email/fleetvu-email-chrome');
+
+  return chrome.buildFleetVuEmailHtml({
+    eyebrow: 'Driver Vault Access',
+    fromLine: 'welcome@fleetvu.org',
+    title: `Hello ${input.driverName}`,
+    introHtml: `Your <strong style="color:#ffffff;">${escapeHtml(input.companyName)}</strong> FleetVu Vault access is ready.
+      ${
+        input.isDesktop
+          ? 'Use this one-time TEMP keycode on desktop, then set your own password.'
+          : 'Open the Vault on your phone, enter this one-time keycode once, then bind fingerprint / Face ID.'
+      }`,
+    bodyHtml: [
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;"><tr><td style="background:#111827;border:1px solid #c9a227;padding:18px;text-align:center;">
+        <div style="font-size:11px;color:#d4a017;font-weight:700;letter-spacing:0.12em;margin-bottom:10px;">ONE-TIME LOGIN KEYCODE</div>
+        <code style="font-size:22px;font-family:Consolas,monospace;color:#d4a017;font-weight:800;letter-spacing:0.08em;">${escapeHtml(input.keycode)}</code>
+      </td></tr></table>`,
+      chrome.emailDetailCard([
+        { label: 'Company', value: input.companyName },
+        { label: 'Access', value: input.isDesktop ? 'Desktop TEMP keycode' : 'Mobile Vault keycode' },
+      ]),
+      `<p style="margin:0;color:#9aa8bc;font-size:12px;line-height:1.5;">This code burns after first use. Do not share it.</p>`,
+    ].join(''),
+    cta: input.isDesktop ? undefined : { href: openUrl, label: 'OPEN FLEETVU VAULT' },
+    supportHtml: input.isDesktop
+      ? undefined
+      : `Or paste this link on your phone:<br/><a href="${escapeHtml(openUrl)}" style="color:#4da3ff;word-break:break-all;">${escapeHtml(openUrl)}</a>`,
+    legalLine: 'FleetVu — Sent via welcome@fleetvu.org.',
+    logoUrl: chrome.vaultEmailLogoSrc({ useCid: false, appBaseUrl: FALLBACK_APP_URL }),
+    documentTitle: 'FleetVu Vault Access',
+  });
 }

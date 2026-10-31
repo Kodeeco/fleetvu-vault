@@ -12,6 +12,14 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: { unoptimized: true },
+  webpack: (config) => {
+    // @supabase/realtime-js uses dynamic require(); noise only — does not affect runtime.
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      { module: /node_modules\/@supabase\/realtime-js/ },
+    ];
+    return config;
+  },
   async headers() {
     return [
       {

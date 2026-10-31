@@ -12,11 +12,21 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Download,
-  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import * as XLSX from 'xlsx';
+import {
+  AccountAuthPanel,
+  AuditPanel,
+  FleetAccountNav,
+  IncidentsPanel,
+  ReportsPanel,
+  SettingsPanel,
+  type FleetPortalTab,
+  getFleetSession,
+} from '@/components/fleet-account/fleet-account-panels';
+import type { FleetAccountSettings } from '@/lib/fleet-account/types';
 
 interface RosterEntry {
   full_name: string;
@@ -29,10 +39,13 @@ interface RosterEntry {
 
 interface PortalMeta {
   token: string;
+  companyId?: string | null;
   companyName: string;
   driverSeatLimit: number;
   status: string;
   contactName?: string;
+  contactEmail?: string;
+  logoUrl?: string | null;
 }
 
 const TEMPLATE_HEADERS = [
@@ -108,6 +121,35 @@ function RosterPortalInner() {
   const [busy, setBusy] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [draft, setDraft] = useState<RosterEntry>(emptyRow());
+  const [tab, setTab] = useState<FleetPortalTab>('roster');
+  const [accountSettings, setAccountSettings] = useState<FleetAccountSettings | null>(null);
+  const [passwordSet, setPasswordSet] = useState(false);
+
+  const loadFleetAccount = useCallback(async (rosterToken: string) => {
+    try {
+      const session = getFleetSession();
+      const res = await fetch(
+        `/api/fleet-account?token=${encodeURIComponent(rosterToken)}&view=bootstrap`,
+        { headers: session ? { 'X-Fleet-Session': session } : undefined },
+      );
+      const data = await res.json();
+      if (!res.ok) return;
+      setPasswordSet(!!data.passwordSet);
+      setAccountSettings(data.settings || null);
+      setPortal((p) =>
+        p
+          ? {
+              ...p,
+              companyId: data.companyId || p.companyId,
+              contactEmail: data.contactEmail || p.contactEmail,
+              logoUrl: data.logoUrl ?? p.logoUrl,
+            }
+          : p,
+      );
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -122,10 +164,13 @@ function RosterPortalInner() {
       if (!res.ok) throw new Error(data.error || 'Failed to load portal');
       setPortal({
         token: data.portal.token,
+        companyId: data.portal.companyId,
         companyName: data.portal.companyName,
         driverSeatLimit: data.portal.driverSeatLimit,
         status: data.portal.status,
         contactName: data.portal.contactName,
+        contactEmail: data.portal.contactEmail,
+        logoUrl: data.portal.logoUrl || null,
       });
       setEntries(
         (data.entries || []).map((e: Record<string, string>) => ({
@@ -138,12 +183,13 @@ function RosterPortalInner() {
         })),
       );
       setError(null);
+      void loadFleetAccount(data.portal.token);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Load failed');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, loadFleetAccount]);
 
   useEffect(() => {
     void load();
@@ -326,8 +372,8 @@ function RosterPortalInner() {
       const remaining = Math.max(0, portal.driverSeatLimit - entries.length);
       setMsg(
         remaining > 0
-          ? `Submitted ${entries.length} driver(s) · ${remaining} paid seat(s) still open.`
-          : 'Submitted full roster to FleetVu. Drivers receive keycodes after approval.',
+          ? `Saved ${entries.length} driver(s) · ${remaining} paid seat(s) still open. You can return anytime to add, edit, or remove drivers.`
+          : 'Roster saved. New drivers get keycodes after FleetVu approval. Reopen this link anytime to manage your roster — no call to FleetVu needed.',
       );
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Submit failed');
@@ -347,16 +393,29 @@ function RosterPortalInner() {
   if (error || !portal) {
     return (
       <div className="min-h-screen bg-[#0b1220] text-slate-200 flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <Lock className="w-10 h-10 text-amber-400 mx-auto mb-3" />
-          <h1 className="text-xl font-bold text-white mb-2">Roster Portal Unavailable</h1>
+        <div className="max-w-md text-center space-y-3">
+          <Lock className="w-10 h-10 text-amber-400 mx-auto" />
+          <h1 className="text-xl font-bold text-white">Vault Portal link unavailable</h1>
           <p className="text-sm text-slate-400">{error}</p>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            If you already set a password, sign in at the main entrance. Otherwise ask FleetVu to
+            resend onboarding (Ops → resend welcome) and use the newest link once.
+          </p>
+          <a
+            href="/vault-login"
+            className="inline-flex items-center justify-center h-10 px-4 rounded-md bg-amber-500 text-slate-950 text-sm font-bold hover:bg-amber-400"
+          >
+            Go to Vault Portal login
+          </a>
         </div>
       </div>
     );
   }
 
-  const locked = portal.status === 'submitted' || portal.status === 'approved';
+  // Customers self-serve forever with this link — never lock add/edit/remove.
+  const locked = false;
+  const alreadySubmitted =
+    portal.status === 'submitted' || portal.status === 'approved';
 
   return (
     <div className="min-h-screen bg-[#0b1220] text-slate-200">
@@ -372,26 +431,59 @@ function RosterPortalInner() {
         }}
       />
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="text-center mb-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/FV-Vault3.png" alt="FleetVu Vault" className="h-16 mx-auto object-contain" />
-          <span className="inline-block mt-3 px-3 py-0.5 rounded-full border border-amber-500/50 bg-amber-500/15 text-[10px] font-bold tracking-[0.18em] text-amber-300 uppercase">
-            Roster Portal
-          </span>
-          <h1 className="text-2xl font-bold text-white mt-4 flex items-center justify-center gap-2">
-            <Building2 className="w-6 h-6 text-amber-400" />
-            FleetVu Roster Portal
-          </h1>
-          <p className="text-sm text-slate-400 mt-3 max-w-2xl mx-auto leading-relaxed">
-            Welcome to your FleetVu Forensic Vault roster portal. Add driver information below — each
-            driver will receive a unique digital Access Keycode after FleetVu review. Upon receipt of
-            your sensors, assign each driver/vehicle a sensor serial from your provisioned pool.
-          </p>
-          <p className="text-xs text-amber-300/90 mt-2 font-semibold">
-            {portal.companyName} · {seatsUsed} of {seatLimit} paid seats used · {seatsLeft} remaining
-          </p>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <FleetAccountNav
+          tab={tab}
+          onChange={setTab}
+          companyName={portal.companyName}
+          logoUrl={portal.logoUrl}
+        />
+
+        {tab === 'account' && (
+          <AccountAuthPanel
+            token={portal.token}
+            contactEmail={portal.contactEmail || ''}
+            passwordSet={passwordSet}
+            onAuthed={() => {
+              setPasswordSet(true);
+              void loadFleetAccount(portal.token);
+            }}
+          />
+        )}
+
+        {tab === 'settings' && accountSettings && (
+          <SettingsPanel
+            token={portal.token}
+            initial={accountSettings}
+            actorEmail={portal.contactEmail || portal.contactName || 'portal'}
+            onSaved={setAccountSettings}
+          />
+        )}
+        {tab === 'settings' && !accountSettings && (
+          <p className="text-xs text-slate-400">Loading settings…</p>
+        )}
+
+        {tab === 'audit' && <AuditPanel token={portal.token} />}
+
+        {tab === 'reports' && <ReportsPanel companyName={portal.companyName} />}
+
+        {tab === 'incidents' && (
+          <IncidentsPanel
+            token={portal.token}
+            actorEmail={portal.contactEmail || portal.contactName || 'portal'}
+          />
+        )}
+
+        {tab === 'roster' && (
+          <>
+        <p className="text-sm text-slate-400 mb-3 max-w-2xl leading-relaxed">
+          Manage drivers anytime — <strong className="text-amber-200">add, edit, or remove</strong>.
+          New drivers receive a one-time Access Keycode after FleetVu approval. Set a portal password
+          under <strong className="text-amber-200">Login</strong> so this stays your fleet backend.
+        </p>
+        <p className="text-xs text-amber-300/90 mb-3 font-semibold">
+          {portal.companyName} · {seatsUsed} of {seatLimit} paid seats used · {seatsLeft} remaining
+        </p>
 
         {/* Seat meter */}
         <div className="mb-4 h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -407,12 +499,19 @@ function RosterPortalInner() {
           </div>
         )}
 
-        {locked && (
-          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            Roster {portal.status}. Drivers receive keycodes after FleetVu approval.
-          </div>
-        )}
+        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 flex items-start gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            <strong className="text-white">Self-service fleet account.</strong> Bookmark this portal.
+            Roster, report recipients, incident shares, and audit logs live here — not in FleetVu Ops.
+            {alreadySubmitted ? (
+              <span className="block mt-1 text-emerald-200/90">
+                Status: {portal.status}. Already-approved drivers keep their keycodes; only new rows
+                need approval.
+              </span>
+            ) : null}
+          </span>
+        </div>
 
         {/* Main roster card — Excel controls live in this header so they cannot be missed */}
         <div className="rounded-xl border border-slate-700 bg-slate-900/80 overflow-hidden shadow-xl">
@@ -501,6 +600,14 @@ function RosterPortalInner() {
                     onChange={(e) => setDraft((d) => ({ ...d, sensor_serial: e.target.value }))}
                   />
                 </Field>
+                <Field label="Truck # (optional)">
+                  <Input
+                    className="h-9 bg-slate-950 border-slate-700 text-xs font-mono"
+                    placeholder="e.g. 72 or #SCF-101 — can add later"
+                    value={draft.truck_number}
+                    onChange={(e) => setDraft((d) => ({ ...d, truck_number: e.target.value }))}
+                  />
+                </Field>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -563,6 +670,7 @@ function RosterPortalInner() {
                     <th className="px-3 py-2 text-left">Name</th>
                     <th className="px-3 py-2 text-left">Email</th>
                     <th className="px-3 py-2 text-left">Location</th>
+                    <th className="px-3 py-2 text-left">Truck #</th>
                     <th className="px-3 py-2 text-left">Sensor</th>
                     {!locked && <th className="px-3 py-2" />}
                   </tr>
@@ -592,6 +700,15 @@ function RosterPortalInner() {
                           className="h-8 bg-slate-950 border-slate-700 text-xs"
                           value={row.location}
                           onChange={(e) => updateRow(idx, { location: e.target.value })}
+                        />
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <Input
+                          disabled={locked}
+                          className="h-8 bg-slate-950 border-slate-700 text-xs font-mono"
+                          placeholder="Optional"
+                          value={row.truck_number}
+                          onChange={(e) => updateRow(idx, { truck_number: e.target.value })}
                         />
                       </td>
                       <td className="px-3 py-1.5">
@@ -636,23 +753,28 @@ function RosterPortalInner() {
                 onClick={submit}
                 disabled={busy}
               >
-                <Send className="w-3.5 h-3.5 mr-1" /> Submit to FleetVu
+                <Send className="w-3.5 h-3.5 mr-1" />
+                {alreadySubmitted ? 'Save & submit updates' : 'Submit to FleetVu'}
               </Button>
             </div>
           )}
         </div>
 
         <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900/50 px-4 py-3">
-          <p className="text-xs font-bold text-amber-300 mb-1">Need help?</p>
+          <p className="text-xs font-bold text-amber-300 mb-1">Manage without calling us</p>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Contact a FleetVu administrator for additional sensor serials or roster questions —{' '}
+            Use this portal for roster, report recipients, incident shares, and audit. For sensor
+            hardware or seat-limit questions only, email{' '}
             <a href="mailto:welcome@fleetvu.org" className="text-amber-300 hover:underline">
               welcome@fleetvu.org
             </a>
+            .
           </p>
         </div>
+          </>
+        )}
 
-        <div className="mt-4">
+        <div className="mt-6">
           <a href="/" className="text-xs text-slate-500 hover:text-amber-300">
             ← Return to FleetVu
           </a>
