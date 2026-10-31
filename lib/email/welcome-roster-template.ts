@@ -127,7 +127,7 @@ export function buildWelcomeRosterEmailHtml(input: WelcomeRosterEmailInput): str
               </h1>
               <p style="margin:0 0 26px 0;color:#c5d0de;font-size:15px;line-height:1.65;font-family:Arial,Helvetica,sans-serif;">
                 Your organization${org ? ` <strong style="color:#ffffff;">${org}</strong>` : ''} is now enrolled in the FleetVu Forensic Vault.
-                This platform provides real-time sensor diagnostics, compliance reporting, and driver keycode management for your entire fleet.
+                This platform provides real-time data, diagnostics, compliance reporting, and driver keycode management for your entire fleet.
               </p>
 
               <div style="font-size:12px;font-weight:700;letter-spacing:0.16em;color:#d4a017;text-transform:uppercase;margin:0 0 14px 0;font-family:Arial,Helvetica,sans-serif;">
