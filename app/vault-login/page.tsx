@@ -54,8 +54,8 @@ export default function VaultLoginPage() {
           </p>
           <h1 className="text-2xl font-bold text-white">Sign in to your fleet account</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
-            One entrance for every customer. Roster, reports, incident shares, settings, and audit —
-            your company Vault backend.
+            Your company&apos;s Vault: users &amp; roles, safety reports, driver roster, incident
+            shares, portal settings, and audit.
           </p>
         </div>
 
